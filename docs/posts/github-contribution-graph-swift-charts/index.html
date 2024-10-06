@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html >
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <title>Github contribution graph with Swift Charts - Minimal example</title>
+    <meta name="description" content="Recreation of the contribution graph from GitHub using Swift Charts">
+    
+    <meta property="og:url" content="http://localhost:3000/posts/github-contribution-graph-swift-charts/">
+    <meta property="og:title" content="Github contribution graph with Swift Charts - Minimal example">
+    <meta property="og:description" content="Recreation of the contribution graph from GitHub using Swift Charts">
+    <meta property="og:image" content="/assets/posts/github-contribution-graph-swift-charts/cover.png" />
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Github contribution graph with Swift Charts - Minimal example">
+    <meta name="twitter:description" content="Recreation of the contribution graph from GitHub using Swift Charts">
+    <meta name="twitter:image" content="/assets/posts/github-contribution-graph-swift-charts/cover.png">
+    
+    <link rel="stylesheet" href="http://localhost:3000/css/modern-normalize.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/modern-base.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/theme.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/style.css">
+    
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)">
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
+        media="(prefers-color-scheme: dark)"
+    >
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+</head>
+
+<body>
+    <header>
+        <nav>
+            <div class="navigation">
+                <a href="/">Home</a>
+            <a href="/about/">About</a>
+            <a href="/rss.xml">RSS</a>
+            </div>
+        </nav>
+    </header>
+        
+    <main>
+    
+    <div class="article-with-toc">
+        <div>
+            <article class="post">
+                
+                <section>
+                <div class="meta">
+                    <time datetime="2024-09-07">2024-09-07</time>
+                     &bull; <span class="reading-time">4 min read</span>
+                    
+                </div>
+                
+                <img src="/assets/posts/github-contribution-graph-swift-charts/cover.png" alt="Github contribution graph with Swift Charts">
+    
+                <p>In 2022 Apple introduced a brand new SwiftUI framework — <a href="https://developer.apple.com/documentation/charts" target="_blank">Swift Charts</a>. You can use it to visualize data with rich customization and minimal code. Swift Charts is available in iOS 16+ and supports watchOS and macOS as well.<br>In this article I’ll guide you through recreating Github Contribution Graph. Let’s start!</p><h2 id="decomposing-the-graph">Decomposing the graph</h2><p><a href="https://github.com/artemnovichkov" target="_blank">My graph</a> looks like:</p><p>    <img src="/assets/posts/github-contribution-graph-swift-charts/contribution-graph.png" alt="Github contribution graph"></p><p>At its core, it’s a <a href="https://en.wikipedia.org/wiki/Heat_map" target="_blank">heatmap</a>, where:</p><ul><li>x-axis represents the weeks, labeled with the corresponding months;</li><li>y-axis displays the weekdays, labeled with Mon, Wed, and Fri;</li><li>Value indicates the count of contributions made to repositories on GitHub, displayed using different color intensities;</li><li>Legend shows color gradient.</li></ul><h2 id="preparing-the-data">Preparing the data</h2><p>Let’s start by defining a data structure to represent each contribution:</p><pre><code class="language-swift">import Foundation
+
+struct Contribution: Identifiable {
+
+    let date: Date
+    let count: Int
+
+    var id: Date {
+        date
+    }
+}
+</code></pre><p>Here, the <code>Contribution</code> struct captures the <code>date</code> when a contribution was made and the <code>count</code> of contributions on that particular day.</p><p>Since my GitHub activity has been a bit low recently 😅, let’s mock contribution data for the last 60 days using random values:</p><pre><code class="language-swift">extension Contribution {
+
+    static func generate() -&gt; [Contribution] {
+        var contributions: [Contribution] = []
+        let toDate = Date.now
+        let fromDate = Calendar.current.date(byAdding: .day, value: -60, to: toDate)!
+
+        var currentDate = fromDate
+        while currentDate &lt;= toDate {
+            let contribution = Contribution(date: currentDate, count: .random(in: 0...10))
+            contributions.append(contribution)
+            currentDate = Calendar.current.date(byAdding: .day, value: 1, to: currentDate)!
+        }
+
+        return contributions
+    }
+}
+</code></pre><h2 id="creating-the-chart">Creating the chart</h2><p>To bring this data to life, we’ll import the Charts framework and prepare a content view:</p><pre><code class="language-swift">import SwiftUI
+import Charts
+
+struct ContentView: View {
+
+    @State var contributions: [Contribution] = Contribution.generate()
+
+    var body: some View {
+        // Chart implementation goes here
+    }
+}
+</code></pre><p>Base view for any chart is a <code>Chart</code>, and for each contribution we’ll use <code>RectangleMark</code>:</p><pre><code class="language-swift">Chart(contributions) { contribution in
+    RectangleMark(
+        xStart: .value("Start week", contribution.date, unit: .weekOfYear),
+        xEnd: .value("End week", contribution.date, unit: .weekOfYear),
+        yStart: .value("Start weekday", weekday(for: contribution.date)),
+        yEnd: .value("End weekday", weekday(for: contribution.date) + 1)
+    )
+}
+</code></pre><p><code>RectangleMark</code> offers several initializers. In this case, we use the one that allows setting the x and y ranges. This configuration is good for a heatmap layout. Every parameter is a <code>PlottableValue</code>, a labeled data struct. For x values we use the date value and combine it by week of year. For y values we convert the date to a weekday. I prefer to start my week from Monday, so I’ll adjust it:</p><pre><code class="language-swift">private func weekday(for date: Date) -&gt; Int {
+    let weekday = Calendar.current.component(.weekday, from: date)
+    let adjustedWeekday = (weekday == 1) ? 7 : (weekday - 1)
+    return adjustedWeekday
+}
+</code></pre><p>And here’s a result:</p><p>    <img src="/assets/posts/github-contribution-graph-swift-charts/base-chart.png" alt="Base chart"></p><p>Great result for a few lines of code! Chart customization is based on modifiers, so let’s add some to change the appearance:</p><pre><code class="language-swift">RectangleMark(/*...*/)
+  .clipShape(RoundedRectangle(cornerRadius: 4).inset(by: 2))
+  .foregroundStyle(by: .value("Count", contribution.count))
+</code></pre><p><code>clipShape</code> modifier allows you to make a shape that fills each mark’s frame. You can use it as a mask. <code>foregroundStyle</code> modifier applies color styling. You can set a solid color, gradient, or you can pass <code>PlottableValue</code> that will change the color based on the value:</p><p>    <img src="/assets/posts/github-contribution-graph-swift-charts/color-chart.png" alt="Chart with styling"></p><p>This looks much better! The chart is now functional and displays the data. It even shows a legend based on count range. To ensure the chart’s marks are square, we can apply <code>chartPlotStyle</code> modifier. It allows you to change frame or aspect ratio of a plot area:</p><pre><code class="language-swift">Chart(/*...*/)
+  .chartPlotStyle { content in
+      content
+        .aspectRatio(aspectRatio, contentMode: .fit)
+  }
+
+private var aspectRatio: Double {
+    if contributions.isEmpty {
+        return 1
+    }
+    let firstDate = contributions.first!.date
+    let lastDate = contributions.last!.date
+    let firstWeek = Calendar.current.component(.weekOfYear, from: firstDate)
+    let lastWeek = Calendar.current.component(.weekOfYear, from: lastDate)
+    return Double(lastWeek - firstWeek + 1) / 7
+}
+</code></pre><p>Y-axis always contains 7 values, and x-axis depends on the data and based on weeks count:</p><p>    <img src="/assets/posts/github-contribution-graph-swift-charts/square-chart.png" alt="Chart with square layout"></p><p>And colors! Originally the contribution graph shows gray color for zero contributions and shades of green for other values. I found this solution for my case:</p><pre><code class="language-swift">Chart(/*...*/)
+.chartForegroundStyleScale(range: Gradient(colors: colors))
+
+private var colors: [Color] {
+    (0...10).map { index in
+        if index == 0 {
+            return Color(.systemGray5)
+        }
+        return Color(.systemGreen).opacity(Double(index) / 10)
+    }
+}
+</code></pre><p><code>chartForegroundStyleScale</code> modifier helps to apply foreground style scale. Pretty obvious, but tricky in real projects. You can simply use two colors like <code>Gradient(colors: [.white, .green])</code> if it fits your data representation, but it’s not our case. Moreover, the colors will be related to count range. For example, if the maximum count in your data set will be 8, it will be solid green. You may ask: can we just use <code>colors</code> array as a <code>range</code> parameter? Yes, but the chart legend won’t show up even if you set it explicitly. After these experiments I stopped at the variant with gradient:</p><p>    <img src="/assets/posts/github-contribution-graph-swift-charts/square-color-chart.png" alt="Chart with colors"></p><p>Next, let’s customize the x and y axes for better readability.</p><h2 id="customizing-the-axes">Customizing the axes</h2><p>For the x-axis we’ll show only month labels at the top of the chart and change the color:</p><pre><code class="language-swift">Chart(/*...*/)
+.chartXAxis {
+    AxisMarks(position: .top, values: .stride(by: .month)) {
+        AxisValueLabel(format: .dateTime.month())
+            .foregroundStyle(Color(.label))
+    }
+}
+</code></pre><p><code>AxisMarks</code> is a group of visual marks such as <code>AxisValueLabel</code>, <code>AxisGridLine</code>, or <code>AxisTick</code>. You can use a default logic and formatting or handle the exact value and show it with custom views. Let’s try it with y-axis:</p><pre><code class="language-swift">Chart(/*...*/)
+.chartYAxis {
+    AxisMarks(position: .leading, values: [1, 3, 5]) { value in
+        if let value = value.as(Int.self) {
+            AxisValueLabel {
+                // Symbols from Calendar.current starting with Monday
+                Text(shortWeekdaySymbols[value - 1])
+            }
+            .foregroundStyle(Color(.label))
+        }
+    }
+}
+</code></pre><p>In the above code, we customize the y-axis to display only Monday, Wednesday, and Friday. To show Monday at the top and remove extra gap between 0 and 1 on x-axis, we can modify a scale of the axis via:</p><pre><code class="language-swift">Chart(/*...*/)
+.chartYScale(domain: .automatic(includesZero: false, reversed: true))
+</code></pre><h2 id="the-legend-of-zelda-the-chart">The legend of <s>Zelda</s> the chart</h2><p>Finally, let’s enhance the chart with a color-coded legend to visually indicate the range of contribution values, from ‘Less’ to ‘More’:</p><pre><code class="language-swift">Chart(/*...*/)
+.chartLegend {
+    HStack(spacing: 4) {
+        Text("Less")
+        ForEach(legendColors, id: \.self) { color in
+            color
+                .frame(width: 10, height: 10)
+                .cornerRadius(2)
+        }
+        Text("More")
+    }
+    .padding(4)
+    .foregroundStyle(Color(.label))
+    .font(.caption2)
+}
+
+private var legendColors: [Color] {
+    Array(stride(from: 0, to: colors.count, by: 2).map { colors[$0] })
+}
+</code></pre><p>It overrides the default legend with a custom one. You can also change the legend position like <code>.chartLegend(position: .bottomTrailing)</code>, but with this code the legend is placed at the top left corner of the plot and ovelap it. It seems like a bug, so let’s leave a default position and see the final result:</p><p>    <img src="/assets/posts/github-contribution-graph-swift-charts/cover.png" alt="Final chart"></p><h2 id="conclusion">Conclusion</h2><p>Swift Charts is a truly interesting framework. It’s designed in SwiftUI style: declarative syntax, some magic default behaviour and lack of documentation in some cases. Classic SwiftUI 😅. Thankfully, the community has provided plenty of chart examples, and I’ve compiled the resources that helped me in one place — <a href="https://github.com/artemnovichkov/awesome-swift-charts" target="_blank">Awesome Swift Charts</a>. This article is my way to explore the framework, implement production-ready design and highlight non-obvious logic. And, of course, share my experience with you!</p><p>Check <a href="https://github.com/artemnovichkov/GithubContributionGraphExample" target="_blank">Github Contribution Graph Example</a> project to see the final result. Thanks for reading!</p>
+                    
+                </section>
+    
+                <footer>
+                    <br>
+                    <time datetime=""></time>
+                    
+                    <div class="tag-list">
+                    </div>
+                    <div class="author-list">
+                    </div>
+                </footer>
+                            
+                <section class="group">
+                </section>
+    
+            </article>
+        </div>
+        
+        <div>
+                </div>
+    </div>
+    
+
+    </main>
+
+    <footer>
+    
+        <p>Made with ❤️ by Artem Novichkov</p>
+    
+        <p>This site was generated using <a href="https://www.swift.org/" target="_blank">Swift</a> & <a href="https://github.com/toucansites/toucan" target="_blank">Toucan</a>.</p>
+    
+        <p class="small">Minimal example &copy; 2024.</p>
+    </footer>
+ 
+
+    
+</body>
+</html>

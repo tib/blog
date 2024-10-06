@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html >
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <title>Using result builders for action sheets in SwiftUI - Minimal example</title>
+    <meta name="description" content="Make SwiftUI sheets more declarative with result builders">
+    
+    <meta property="og:url" content="http://localhost:3000/posts/result-builders/">
+    <meta property="og:title" content="Using result builders for action sheets in SwiftUI - Minimal example">
+    <meta property="og:description" content="Make SwiftUI sheets more declarative with result builders">
+    <meta property="og:image" content="/assets/posts/result-builders/cover.png" />
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Using result builders for action sheets in SwiftUI - Minimal example">
+    <meta name="twitter:description" content="Make SwiftUI sheets more declarative with result builders">
+    <meta name="twitter:image" content="/assets/posts/result-builders/cover.png">
+    
+    <link rel="stylesheet" href="http://localhost:3000/css/modern-normalize.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/modern-base.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/theme.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/style.css">
+    
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)">
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
+        media="(prefers-color-scheme: dark)"
+    >
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+</head>
+
+<body>
+    <header>
+        <nav>
+            <div class="navigation">
+                <a href="/">Home</a>
+            <a href="/about/">About</a>
+            <a href="/rss.xml">RSS</a>
+            </div>
+        </nav>
+    </header>
+        
+    <main>
+    
+    <div class="article-with-toc">
+        <div>
+            <article class="post">
+                
+                <section>
+                <div class="meta">
+                    <time datetime="2021-05-01">2021-05-01</time>
+                     &bull; <span class="reading-time">3 min read</span>
+                    
+                </div>
+                
+                <img src="/assets/posts/result-builders/cover.png" alt="Using result builders for action sheets in SwiftUI">
+    
+                <p>One of the key features of SwiftUI is a declarative syntax for layout. It is available thanks to <code>result builders</code>, previously called function builders. With result builders, we can implicitly build up a final value from a sequence of components. The final revision of this feature is released in Swift 5.4, and Xcode 12.5 suggests code completions and fix-its for it. I guess it’s a good sign for exploring it and making action sheets more declarative!</p><h2 id="preparation">Preparation</h2><p>We’ll create a simple SwiftUI app, where we can select ingredients for sandwich.</p><pre><code class="language-swift">struct ContentView: View {
+    
+    @State private var ingredients: [String] = []
+    @State private var isActionSheetPresented = false
+    
+    var body: some View {
+        VStack {
+            Text(ingredients.joined())
+                .font(.system(.title))
+            Button("Make a sandwich") {
+                isActionSheetPresented = true
+            }
+        }
+        .padding()
+        .actionSheet(isPresented: $isActionSheetPresented) {
+            let buttons = [ActionSheet.Button.default(Text("🍞")) {
+                ingredients.append("🍞")
+            },
+            ActionSheet.Button.cancel()]
+            return ActionSheet(title: Text("Select an ingredient"), message: nil, buttons: buttons)
+        }
+    }
+}
+</code></pre><p>When we tap on the button, <code>ActionSheet</code> is presented with buttons from the array in the initializer. The syntax for action buttons, especially with defined actions, looks a bit complicated. Let’s improve it with a custom result builder.</p><p><Image<br>alt={<code>Initial preview</code>}<br>src={<code>/images/result-builders/initial-preview.png</code>}<br>width={946}<br>height={1764}<br>/></p><h2 id="basics">Basics</h2><p>We create a <code>ButtonsBuilder</code> struct with <code>@resultBuilder</code> attribute. To start using it, we must implement at least one static <code>buildBlock</code> function:</p><pre><code class="language-swift">@resultBuilder
+struct ButtonsBuilder {
+
+    static func buildBlock(_ components: ActionSheet.Button...) -&gt; [ActionSheet.Button] {
+        components
+    }
+}
+</code></pre><p>Here we have a variadic parameter with <code>ActionSheet.Button</code> and just return it as is.</p><p>Because <code>ActionSheet</code> knows nothing about our builder, we create a new initializer with title, message, and the builder:</p><pre><code class="language-swift">extension ActionSheet {
+    
+    init(title: Text, message: Text? = nil, @ButtonsBuilder buttons: () -&gt; [ActionSheet.Button]) {
+        self.init(title: title, message: message, buttons: buttons())
+    }
+}
+</code></pre><p>Now we’re ready to refactor <code>ActionSheet</code> configuration:</p><pre><code class="language-swift">.actionSheet(isPresented: $isActionSheetPresented) {
+    ActionSheet(title: Text("Select an ingredient"), message: nil) {
+        ActionSheet.Button.default(Text("🍞")) {
+            ingredients.append("🍞")
+        }
+        ActionSheet.Button.cancel()
+    }
+}
+</code></pre><p>Looks great!</p><h2 id="what-if-..-working-with-conditions">What if?.. Working with conditions</h2><p>Result builders may build a partial result depending on some conditions. In our app, we add a new <code>State</code> and <code>Toggle</code>. If it is enabled, we add cucumbers and tomatoes otherwise.</p><pre><code class="language-swift">// In States section
+@State private var likeCucumbers = true
+
+// Below Text in ContentView
+Toggle("I love cucumbers", isOn: $likeCucumbers)
+</code></pre><p>To support <code>if-else</code> conditions in our builder, we must implement <code>buildEither(first:)</code> and <code>buildEither(second:)</code> functions:</p><pre><code class="language-swift">@resultBuilder
+struct ButtonsBuilder {
+    
+    ...
+    
+    static func buildEither(first components: [ActionSheet.Button]) -&gt; [ActionSheet.Button] {
+        components
+    }
+    
+    static func buildEither(second components: [ActionSheet.Button]) -&gt; [ActionSheet.Button] {
+        components
+    }
+}
+</code></pre><p>If we try to add <code>if-else</code> statement like this:</p><pre><code class="language-swift">if likeCucumbers {
+	ActionSheet.Button.default(Text("🥒")) {
+		ingredients.append("🥒")
+	}
+}
+else {
+	ActionSheet.Button.default(Text("🍅")) {
+		ingredients.append("🍅")
+	}
+}
+</code></pre><p>We have an error:</p><blockquote><p>Cannot pass array of type ‘[ActionSheet.Button]’ (aka ‘Array<Alert.Button>’) as variadic arguments of type ‘ActionSheet.Button’ (aka ‘Alert.Button’)</p></blockquote><p>We can solve the error by defining a new protocol and implementing it by both a single <code>ActionSheet.Button</code> and a collection of <code>ButtonsConvertible</code>:</p><pre><code class="language-swift">protocol ButtonsConvertible {
+    
+    var buttons: [ActionSheet.Button] { get }
+}
+
+extension ActionSheet.Button: ButtonsConvertible {
+    
+    var buttons: [ActionSheet.Button] {
+        [self]
+    }
+}
+
+extension Array: ButtonsConvertible where Element == ButtonsConvertible {
+
+    var buttons: [ActionSheet.Button] { self.flatMap(\.buttons) }
+}
+</code></pre><p>In <code>ButtonsBuilder</code> we replace all <code>ActionSheet.Button</code> with <code>ButtonsConvertible</code>. And finally, we implement <code>buildFinalResult</code> function that gets all <code>ButtonsConvertible</code> and maps it to buttons:</p><pre><code class="language-swift">@resultBuilder
+struct ButtonsBuilder {
+    
+    static func buildBlock(_ components: ButtonsConvertible...) -&gt; [ButtonsConvertible] {
+        components
+    }
+    
+    ...
+    
+    static func buildFinalResult(_ components: [ButtonsConvertible]) -&gt; [ActionSheet.Button] {
+        components.flatMap(\.buttons)
+    }
+}
+</code></pre><p>Now <code>likeCucumbers</code> check builds successfully.</p><h2 id="using-foreach-for-actions">Using ForEach for Actions</h2><p>SwiftUI has an awesome <code>ForEach</code> element. It gets different data collections and converts them to views via <code>@ViewBuilder</code>. I was wondering if there is any chance to use it for buttons 🤔. Of course, let’s start with an extension:</p><pre><code class="language-swift">extension ForEach: ButtonsConvertible where Content == ActionSheet.Button {
+
+    var buttons: [ActionSheet.Button] {
+        data.map(content)
+    }
+}
+</code></pre><p>Here we declare that <code>Content</code> generic must be <code>ActionSheet.Button</code> and map data to buttons via <code>content</code> closure.</p><p><code>ActionSheet.Button</code> is a simple typealias for <code>Alert.Button</code>, and <code>Alert.Button</code> is just a struct that doesn’t conform <code>View</code> protocol. To solve it, we implement it and return <code>Never</code> for the body:</p><pre><code class="language-swift">extension ActionSheet.Button: View {
+
+    public var body: Never {
+        fatalError()
+    }
+}
+</code></pre><p>Because we don’t use <code>ForEach</code> for rendering, the body will never be called. And it works now!</p><pre><code class="language-swift">ForEach(["🧅", "🧄"], id: \.self) { string in
+	ActionSheet.Button.default(Text(string)) {
+		ingredients.append(string)
+	}
+}
+</code></pre><p>We can explicitly add ids like in the example, use <code>Identifiable</code> array or even ranges inside <code>ForEach</code>. The downside of this trick is that we can accidentally use <code>ActionSheet.Button</code> inside any body and get <code>fatalError</code> in runtime.</p><h2 id="conclusion">Conclusion</h2><p>Result builder is a great enhancement in Swift language. In certain cases, it improves code readability dramatically. If you want to play with the example, check <a href="https://github.com/artemnovichkov/ResultBuilderExample" target="_blank">ResultBuilderExample</a> repo.</p><p>Thanks for reading 🙏</p><h2 id="references">References</h2><ul><li><a href="https://docs.swift.org/swift-book/ReferenceManual/Attributes.html#ID633" target="_blank">Official documentation</a> by Apple</li><li><a href="https://www.avanderlee.com/swift/result-builders/" target="_blank">Result builders in Swift explained with code examples</a> by <a href="https://twitter.com/twannl" target="_blank">Antoine v.d. SwiftLee</a></li><li><a href="https://github.com/carson-katri/awesome-function-builders" target="_blank">awesome-function-builders</a> by community</li></ul>
+                    
+                </section>
+    
+                <footer>
+                    <br>
+                    <time datetime=""></time>
+                    
+                    <div class="tag-list">
+                    </div>
+                    <div class="author-list">
+                    </div>
+                </footer>
+                            
+                <section class="group">
+                </section>
+    
+            </article>
+        </div>
+        
+        <div>
+                </div>
+    </div>
+    
+
+    </main>
+
+    <footer>
+    
+        <p>Made with ❤️ by Artem Novichkov</p>
+    
+        <p>This site was generated using <a href="https://www.swift.org/" target="_blank">Swift</a> & <a href="https://github.com/toucansites/toucan" target="_blank">Toucan</a>.</p>
+    
+        <p class="small">Minimal example &copy; 2024.</p>
+    </footer>
+ 
+
+    
+</body>
+</html>

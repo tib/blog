@@ -1,0 +1,19 @@
+site:
+    baseUrl: "http://localhost:3000/"
+    title: "Minimal example"
+    description: "This is a minimal toucan example"
+    dateFormat: "yyyy-MM-dd"
+    navigation:
+        - label: "Home"
+          url: "/"
+        - label: "About"
+          url: "/about/"
+        - label: "RSS"
+          url: "/rss.xml"
+
+content:
+    dateFormat: "yyyy-MM-dd"
+
+themes:
+    use: "minimal"
+

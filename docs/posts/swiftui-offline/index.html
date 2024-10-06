@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html >
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <title>Working with web content offline in SwiftUI apps - Minimal example</title>
+    <meta name="description" content="Three out-of-box ways to show web content offline. Of course, with SwiftUI examples">
+    
+    <meta property="og:url" content="http://localhost:3000/posts/swiftui-offline/">
+    <meta property="og:title" content="Working with web content offline in SwiftUI apps - Minimal example">
+    <meta property="og:description" content="Three out-of-box ways to show web content offline. Of course, with SwiftUI examples">
+    <meta property="og:image" content="/assets/posts/swiftui-offline/cover.png" />
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Working with web content offline in SwiftUI apps - Minimal example">
+    <meta name="twitter:description" content="Three out-of-box ways to show web content offline. Of course, with SwiftUI examples">
+    <meta name="twitter:image" content="/assets/posts/swiftui-offline/cover.png">
+    
+    <link rel="stylesheet" href="http://localhost:3000/css/modern-normalize.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/modern-base.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/theme.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/style.css">
+    
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)">
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
+        media="(prefers-color-scheme: dark)"
+    >
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+</head>
+
+<body>
+    <header>
+        <nav>
+            <div class="navigation">
+                <a href="/">Home</a>
+            <a href="/about/">About</a>
+            <a href="/rss.xml">RSS</a>
+            </div>
+        </nav>
+    </header>
+        
+    <main>
+    
+    <div class="article-with-toc">
+        <div>
+            <article class="post">
+                
+                <section>
+                <div class="meta">
+                    <time datetime="2021-04-25">2021-04-25</time>
+                     &bull; <span class="reading-time">3 min read</span>
+                    
+                </div>
+                
+                <img src="/assets/posts/swiftui-offline/cover.png" alt="Working with web content offline in SwiftUI apps">
+    
+                <p>🏆 Featured in <a href="https://iosdevweekly.com/issues/505" target="_blank">iOS Dev Weekly - Issue 505</a></p><p>I continue developing an app for saving and reading articles. In my <a href="https://artemnovichkov.com/blog/sheet-happens" target="_blank">previous post</a>, I covered interesting cases of using sheets in SwiftUI. Now I want to describe my journey with offline mode.</p><p>There are situations when users are unable to download web content: bad connection, airplane mode, etc. <code>WKWebView</code> has useful APIs for saving its content in different formats. Let’s check it out!</p><blockquote><p>Note: Examples are written in Swift 5.4 and tested on iOS 14.5 with Xcode 12.5 (12E262).</p></blockquote><h2 id="preparation">Preparation</h2><p>In the app user can save URL content without explicit previewing. To deal with it, we use a simple <code>WKWebView</code> wrapper called <code>WebDataManager</code>:</p><pre><code class="language-swift">import WebKit
+
+final class WebDataManager: NSObject {
+    
+    private lazy var webView: WKWebView = {
+        let webView = WKWebView()
+        webView.navigationDelegate = self
+        return webView
+    }()
+    
+    private var completionHandler: ((Result&lt;Data, Error&gt;) -&gt; Void)?
+    
+    func createData(url: URL, completionHandler: @escaping (Result&lt;Data, Error&gt;) -&gt; Void) {
+        self.completionHandler = completionHandler
+        webView.load(.init(url: url))
+    }
+}
+</code></pre><p>We create a web view without frame, because we don’t want to show it. Also, <code>WebDataManager</code> has a convenience function with completion to handle web content. For all formats it will return Data that we can store locally.</p><p>To work with web navigation, we must conform <code>WKNavigationDelegate</code> and implement <code>didFinish</code> and <code>didFail</code> functions:</p><pre><code class="language-swift">extension WebDataManager: WKNavigationDelegate {
+    
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        
+// save loaded content
+
+    }
+    
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        completionHandler?(.failure(error))
+    }
+}
+</code></pre><p>These functions will be called on navigation changes. Now we are ready to save the content, and our first station will be <code>takeSnapshot</code>.</p><h2 id="snapshots">Snapshots</h2><p>Since iOS 11.0 <code>WKWebView</code> has <code>takeSnapshot</code> function. It has an optional WKSnapshotConfiguration to specify a capture behavior. In the final, it returns a generated image.</p><pre><code class="language-swift">// declared in WebDataManager
+
+enum DataError: Error {
+    case noImageData
+}
+
+func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+    let config = WKSnapshotConfiguration()
+    webView.takeSnapshot(with: config) { [weak self] image, error in
+        if let error = error {
+            self?.completionHandler?(.failure(error))
+            return
+        }
+        guard let pngData = image?.pngData() else {
+            self?.completionHandler?(.failure(DataError.noImageData))
+            return
+        }
+        self?.completionHandler?(.success(pngData))
+    }
+}
+</code></pre><p>Remember zero frame of the web view? Because of it, we have an unknown error here:</p><blockquote><p>Error Domain=WKErrorDomain Code=1 “An unknown error occurred” UserInfo={NSLocalizedDescription=An unknown error occurred}</p></blockquote><p><Image<br>alt={<code>Initial preview</code>}<br>src={<code>https://media.giphy.com/media/S5n7Wkhhw5A2IrfKER/giphy.gif</code>}<br>width={480}<br>height={198}<br>/></p><p>To fix it, we can get a <code>contentSize</code> and set it to config’s rect:</p><pre><code class="language-swift">config.rect = .init(origin: .zero, size: webView.scrollView.contentSize)
+</code></pre><p>Now we have the image data, can save it locally and show in the app:</p><pre><code class="language-swift">import SwiftUI
+
+struct SnapshotContentView: View {
+    
+    let url: URL
+    
+    var body: some View {
+        if let image = UIImage(contentsOfFile: url.path) {
+            ScrollView {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+            }
+        }
+        else {
+            Text("Fail to load image")
+        }
+    }
+}
+</code></pre><p>Let’s highlight a few cons of this approach:</p><ul><li>Images have fixed sizes and may look bad on different screens;</li><li>We can’t copy text from contents and open URLs.</li></ul><p>Luckily, the next approach has no these issues.</p><h2 id="pdf">PDF</h2><p>With iOS 14.0 <code>WKWebView</code> got a new <code>createPDF</code> function. It already returns a <code>Result</code> object that we can just pass to our <code>completionHandler</code>:</p><pre><code class="language-swift">func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+    webView.createPDF { [weak self] result in
+        self?.completionHandler?(result)
+    }
+}
+</code></pre><p>For a record, the function also takes <code>WKPDFConfiguration</code> object with the only option — a rect to capture a portion of the web view.</p><p>SwiftUI has no views for PDF content. But with helping of <code>UIViewRepresentable</code> we can use <code>PDFView</code> from <code>PDFKit</code> framework:</p><pre><code class="language-swift">import SwiftUI
+import PDFKit
+
+struct PDFContentView: UIViewRepresentable {
+    
+    let url: URL
+    
+    func makeUIView(context: Context) -&gt; PDFView {
+        let view = PDFView()
+        view.autoScales = true
+        view.document = PDFDocument(url: url)
+        return view
+    }
+    
+    func updateUIView(_ pdfView: PDFView, context: Context) {
+    }
+}
+</code></pre><p>Now we can copy text and even open URLs in Safari, but web content is still static. For instance, animations are gone, drop-down lists will be collapsed forever.</p><h2 id="web-archive">Web archive</h2><p>The last approach in this article is web archives. A web archive is a file that archives inside it all the content of one web page. And since iOS 14.0 we can work with it easily:</p><pre><code class="language-swift">func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+    webView.createWebArchiveData { [weak self] result in
+        self?.completionHandler?(result)
+    }
+}
+</code></pre><p>Of course, we have another wrapper, but for <code>WKWebView</code>:</p><pre><code class="language-swift">import SwiftUI
+import WebKit
+
+struct WebArchiveContentView: UIViewRepresentable {
+    
+    let url: URL
+    
+    func makeUIView(context: Context) -&gt; WKWebView {
+        WKWebView()
+    }
+    
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        webView.loadFileURL(url, allowingReadAccessTo: url)
+    }
+}
+</code></pre><p>With the magic of web archives web page logic is working as well. With an internet connection, the web view will navigate to tapped content links.</p><h2 id="conclusion">Conclusion</h2><p>Finally, for the app I choose web archives, but all approaches are helpful based on app purposes. The last thing I want to add is a size of rendered contents. For my blog’s main page the sizes are:</p><ul><li>.png — 1,8 Mb;</li><li>.pdf — 2,3 Mb;</li><li>.webarchive — 5,3 Mb.</li></ul><p>I don’t mind it (yet 😅), but I’m planning to add features for clearing saved data and download archives for selected articles.</p><p>If you want to play with examples and test your URLs, an example project with all three saving options is available <a href="https://github.com/artemnovichkov/OfflineDataExample" target="_blank">here</a>.</p><p><Image<br>alt={<code>Example preview</code>}<br>src={<code>/images/swiftui-offline/example-preview.png</code>}<br>width={946}<br>height={1764}<br>/></p>
+                    
+                </section>
+    
+                <footer>
+                    <br>
+                    <time datetime=""></time>
+                    
+                    <div class="tag-list">
+                    </div>
+                    <div class="author-list">
+                    </div>
+                </footer>
+                            
+                <section class="group">
+                </section>
+    
+            </article>
+        </div>
+        
+        <div>
+                </div>
+    </div>
+    
+
+    </main>
+
+    <footer>
+    
+        <p>Made with ❤️ by Artem Novichkov</p>
+    
+        <p>This site was generated using <a href="https://www.swift.org/" target="_blank">Swift</a> & <a href="https://github.com/toucansites/toucan" target="_blank">Toucan</a>.</p>
+    
+        <p class="small">Minimal example &copy; 2024.</p>
+    </footer>
+ 
+
+    
+</body>
+</html>

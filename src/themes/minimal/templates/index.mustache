@@ -1,0 +1,44 @@
+{{<html}}
+{{$main}}
+<header>
+    <img src="https://www.artemnovichkov.com/_next/image?url=%2Fimages%2Favatar.jpg&w=384&q=75">
+    <h1>Artem Novichkov</h1>
+    <p>Bearded iOS developer from Siberia 👨🏻‍💻</p>
+</header>
+
+<section id="home">
+    {{& page.contents}}
+    
+    {{#empty(site.context.featured)}}
+    {{/empty(site.context.featured)}}
+    {{^empty(site.context.featured)}}
+    <div>
+    {{#site.context.featured}}
+        {{> blog.blocks.post}}
+    {{/site.context.featured}}
+    </div>
+    {{/empty(site.context.featured)}}
+    
+    {{#empty(site.context.posts)}}
+    {{/empty(site.context.posts)}}
+    {{^empty(site.context.posts)}}
+    <div class="grid grid-321">
+    {{#site.context.posts}}
+        {{> blog.blocks.post}}
+    {{/site.context.posts}}
+    </div>
+    {{/empty(site.context.posts)}}
+    
+    {{#empty(site.context.pagination)}}
+    {{/empty(site.context.pagination)}}
+    {{^empty(site.context.pagination)}}
+    <div class="pagination">
+    {{#site.context.pagination}}
+        {{> blocks.pagination}}
+    {{/site.context.pagination}}
+    </div>
+    {{/empty(site.context.pagination)}}
+</section>
+
+{{/main}}
+{{/html}}

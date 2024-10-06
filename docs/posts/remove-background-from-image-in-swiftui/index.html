@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html >
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <title>Remove background from image in SwiftUI - Minimal example</title>
+    <meta name="description" content="Recreation of photo cutout feature from Telegram in SwiftUI">
+    
+    <meta property="og:url" content="http://localhost:3000/posts/remove-background-from-image-in-swiftui/">
+    <meta property="og:title" content="Remove background from image in SwiftUI - Minimal example">
+    <meta property="og:description" content="Recreation of photo cutout feature from Telegram in SwiftUI">
+    <meta property="og:image" content="/assets/posts/remove-background-from-image-in-swiftui/cover.png" />
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Remove background from image in SwiftUI - Minimal example">
+    <meta name="twitter:description" content="Recreation of photo cutout feature from Telegram in SwiftUI">
+    <meta name="twitter:image" content="/assets/posts/remove-background-from-image-in-swiftui/cover.png">
+    
+    <link rel="stylesheet" href="http://localhost:3000/css/modern-normalize.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/modern-base.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/theme.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/style.css">
+    
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)">
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
+        media="(prefers-color-scheme: dark)"
+    >
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+</head>
+
+<body>
+    <header>
+        <nav>
+            <div class="navigation">
+                <a href="/">Home</a>
+            <a href="/about/">About</a>
+            <a href="/rss.xml">RSS</a>
+            </div>
+        </nav>
+    </header>
+        
+    <main>
+    
+    <div class="article-with-toc">
+        <div>
+            <article class="post">
+                
+                <section>
+                <div class="meta">
+                    <time datetime="2024-01-16">2024-01-16</time>
+                     &bull; <span class="reading-time">3 min read</span>
+                    
+                </div>
+                
+                <img src="/assets/posts/remove-background-from-image-in-swiftui/cover.png" alt="Remove background from image in SwiftUI">
+    
+                <p>In my <a href="https://www.artemnovichkov.com/blog/spoiler-view" target="_blank">last article</a> I implemented a spoiler feature from Telegram. The team at <a href="https://www.drawww.app" target="_blank">Drawww</a> was inspired by it and asked me to recreate a new feature — <a href="https://telegram.org/blog/posts-in-stories-and-more#photo-cutouts-for-stories" target="_blank">removing background from images</a>. Luckily, it’s very easy with a new iOS 17 API — <code>VNGenerateForegroundInstanceMaskRequest</code>. Fasten your seatbelts, we’re ready to start!</p><h2 id="preparations">Preparations</h2><p>First, we create an image and a button:</p><pre><code class="language-swift">struct ContentView: View {
+
+    @State private var image = UIImage.cat
+
+    var body: some View {
+        VStack {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+            Button("Create a sticker") {
+                createSticker()
+            }
+        }
+        .padding()
+    }
+
+    // MARK: - Private
+
+    private func createSticker() {
+        // Main logic
+    }
+}
+</code></pre><p>I added a photo of my lovely cat Trisha to the app bundle, and here is the result:</p><p><Image<br>alt={<code>Initial view</code>}<br>src={<code>/images/remove-background-from-image-in-swiftui/initial-view.png</code>}<br>width={685}<br>height={1366}<br>/></p><h2 id="handlers-and-requests">Handlers and requests</h2><p>To remove the background from the image, we will generate a mask image and apply it to the original image. Let’s create a <code>CIImage</code>, we will use it further:</p><pre><code class="language-swift">private func createSticker() {
+    guard let inputImage = CIImage(image: image) else {
+        print("Failed to create CIImage")
+        return
+    }
+}
+</code></pre><p>Next, let’s create a new <code>subjectMaskImage(from:)</code> function, that returns a mask image with foreground objects:</p><pre><code class="language-swift">private func subjectMaskImage(from inputImage: CIImage) -&gt; CIImage? {
+}
+</code></pre><p>To work with the <code>inputImage</code>, we will use the Vision framework and two main classes:</p><ul><li><code>VNImageRequestHandler</code> allows to perform image analysis requests pertaining to a single image;</li><li><code>VNGenerateForegroundInstanceMaskRequest</code> is a special request that generates an instance mask of noticable objects.</li></ul><p>The next step is to perform the request:</p><pre><code class="language-swift">// At the top of ContentView
+import Vision
+
+// in the subjectMaskImage(from:) function
+let handler = VNImageRequestHandler(ciImage: inputImage)
+let request = VNGenerateForegroundInstanceMaskRequest()
+do {
+    try handler.perform([request])
+} catch {
+    print(error)
+    return nil
+}
+</code></pre><p>The requests may fail. For example, <code>handler</code> throws an error if you try to run the code on an iOS Simulator:</p><blockquote><p>Error Domain=com.apple.Vision Code=9 “Could not create inference context” UserInfo={NSLocalizedDescription=Could not create inference context}</p></blockquote><p>The result of the requests is an array of <code>VNInstanceMaskObservation</code> objects. We need to check them, take the first one and generate the mask:</p><pre><code class="language-swift">guard let result = request.results?.first else {
+    print("No observations found")
+    return nil
+}
+do {
+    let maskPixelBuffer = try result.generateScaledMaskForImage(forInstances: result.allInstances, from: handler)
+    return CIImage(cvPixelBuffer: maskPixelBuffer)
+} catch {
+    print(error)
+    return nil
+}
+</code></pre><p>Now we’re ready to call the function and get the mask image:</p><pre><code class="language-swift">private func createSticker() {
+    guard let inputImage = CIImage(image: image) else {
+        print("Failed to create CIImage")
+        return
+    }
+    guard let maskImage = subjectMaskImage(from: inputImage) else {
+        print("Failed to create mask image")
+        return
+    }
+}
+</code></pre><p>This is what we got:</p><p><Image<br>alt={<code>Mask image</code>}<br>src={<code>/images/remove-background-from-image-in-swiftui/mask.png</code>}<br>width={1008}<br>height={1344}<br>/></p><h2 id="applying-mask">Applying mask</h2><p>The mask is ready, therefore we’re ready to apply it to the original image. With the help of <code>CIFilter.blendWithMask()</code>, we can generate a final image:</p><pre><code class="language-swift">// At the top of ContentView
+import CoreImage.CIFilterBuiltins
+
+private func apply(mask: CIImage, to image: CIImage) -&gt; CIImage {
+    let filter = CIFilter.blendWithMask()
+    filter.inputImage = image
+    filter.maskImage = mask
+    filter.backgroundImage = CIImage.empty()
+    return filter.outputImage!
+}
+</code></pre><p>Finally, we render the result to a UIImage:</p><pre><code class="language-swift">private func render(ciImage: CIImage) -&gt; UIImage {
+    guard let cgImage = CIContext(options: nil).createCGImage(ciImage, from: ciImage.extent) else {
+        fatalError("Failed to render CGImage")
+    }
+    return UIImage(cgImage: cgImage)
+}
+</code></pre><p>Put it all together and check the result! Note that performing the requests is a time-consuming operation. So we’ll add a separate queue to prevent main thread blocking:</p><pre><code class="language-swift">
+// In ContentView
+private var processingQueue = DispatchQueue(label: "ProcessingQueue")
+
+private func createSticker() {
+    guard let inputImage = CIImage(image: image) else {
+        print("Failed to create CIImage")
+        return
+    }
+    processingQueue.async {
+        guard let maskImage = subjectMaskImage(from: inputImage) else {
+            print("Failed to create mask image")
+            DispatchQueue.main.async {
+                isLoading = false
+            }
+            return
+        }
+        let outputImage = apply(maskImage: maskImage, to: inputImage)
+        let image = render(ciImage: outputImage)
+        DispatchQueue.main.async {
+            self.image = image
+        }
+    }
+}
+</code></pre><p>That’s it! But the transition between states looks a bit boring, let’s add some animations and magic particles.</p><p><Image<br>alt={<code>Initial view</code>}<br>src={<code>/images/remove-background-from-image-in-swiftui/final-view.png</code>}<br>width={685}<br>height={1366}<br>/></p><h1>Animation and particles 💅</h1><p>We create a <code>StickerView</code> with two bindings: an original image and a generated sticker.</p><pre><code class="language-swift">import SwiftUI
+
+struct StickerView: View {
+
+    @Binding var image: UIImage
+    @Binding var sticker: UIImage?
+
+    var body: some View {
+        ZStack {
+            originalImage
+            stickerImage
+        }
+    }
+
+    // MARK: - Private
+
+    @ViewBuilder
+    private var originalImage: some View {
+        // Layout for image
+    }
+
+    @ViewBuilder
+    private var stickerImage: some View {
+        // Layout for sticker
+    }
+</code></pre><p>When the sticker is set, we’ll add some animations:</p><ul><li>Hide the image;</li><li>Bounce the sticker via scale changes;</li><li>Show the particles.</li></ul><p>Starting with the original image, we add basic modifiers and an opacity animation based on the sticker’s state:</p><pre><code class="language-swift">Image(uiImage: image)
+   .resizable()
+   .scaledToFit()
+   .opacity(sticker == nil ? 1 : 0)
+   .animation(.easeOut(duration: 1), value: sticker)
+</code></pre><p><Image<br>alt={<code>Hide background of the image</code>}<br>src={<code>/images/remove-background-from-image-in-swiftui/background-animation.gif</code>}<br>width={500}<br>height={1084}<br>/></p><p>Looks better! Now we add the sticker image layout and scale it for highlighting:</p><pre><code class="language-swift">// In StickerView
+@State private var stickerScale: Double = 1
+
+@ViewBuilder
+private var stickerImage: some View {
+    if let sticker {
+        Image(uiImage: sticker)
+            .resizable()
+            .scaledToFit()
+            .scaleEffect(stickerScale)
+            .onAppear {
+                withAnimation(.easeOut(duration: 1)) {
+                    stickerScale = 1.1
+                } completion: {
+                    withAnimation(.easeOut(duration: 1)) {
+                        stickerScale = 1
+                    }
+                }
+            }
+    }
+}
+</code></pre><p><Image<br>alt={<code>Scale the sticker image</code>}<br>src={<code>/images/remove-background-from-image-in-swiftui/sticker-animation.gif</code>}<br>width={500}<br>height={1084}<br>/></p><p>It remains only to add the particles. We’ll reuse a <a href="https://github.com/artemnovichkov/SpoilerViewExample/blob/main/SpoilerViewExample/SpoilerView.swift" target="_blank">SpoilerView</a> from the previous article and add it as an overlay for <code>originalImage</code>:</p><pre><code class="language-swift">// In StickerView
+@State private var spoilerViewOpacity: Double = 0
+
+// Add to originalImage
+.overlay {
+    SpoilerView(isOn: true)
+        .opacity(spoilerViewOpacity)
+}
+
+// Update stickerImage
+.onAppear {
+    withAnimation(.easeOut(duration: 1)) {
+        spoilerViewOpacity = 1
+        stickerScale = 1.1
+    } completion: {
+        withAnimation(.linear) {
+            spoilerViewOpacity = 0
+        }
+        withAnimation(.easeOut(duration: 1)) {
+            stickerScale = 1
+        }
+    }                    
+}
+</code></pre><p>Now we can see the final result:</p><p><Image<br>alt={<code>Scale the sticker image</code>}<br>src={<code>/images/remove-background-from-image-in-swiftui/final-animation.gif</code>}<br>width={500}<br>height={1084}<br>/></p><p>If you want to see the final code, check out <a href="https://github.com/artemnovichkov/StickerViewExample" target="_blank">StickerViewExample</a> project on Github. I added small changes like a loading state. Feel free to share your thoughts, ask questions and suggest improvements on <a href="https://twitter.com/iosartem" target="_blank">Twitter</a>. Thank you for reading!</p><h2 id="references">References</h2><ul><li><a href="https://developer.apple.com/videos/play/wwdc2023/10176" target="_blank">Lift subjects from images in your app, WWDC 2023</a></li><li><a href="https://developer.apple.com/documentation/vision/applying_visual_effects_to_foreground_subjects" target="_blank">Applying visual effects to foreground subjects</a></li></ul>
+                    
+                </section>
+    
+                <footer>
+                    <br>
+                    <time datetime=""></time>
+                    
+                    <div class="tag-list">
+                    </div>
+                    <div class="author-list">
+                    </div>
+                </footer>
+                            
+                <section class="group">
+                </section>
+    
+            </article>
+        </div>
+        
+        <div>
+                </div>
+    </div>
+    
+
+    </main>
+
+    <footer>
+    
+        <p>Made with ❤️ by Artem Novichkov</p>
+    
+        <p>This site was generated using <a href="https://www.swift.org/" target="_blank">Swift</a> & <a href="https://github.com/toucansites/toucan" target="_blank">Toucan</a>.</p>
+    
+        <p class="small">Minimal example &copy; 2024.</p>
+    </footer>
+ 
+
+    
+</body>
+</html>

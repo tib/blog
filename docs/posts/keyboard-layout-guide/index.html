@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html >
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <title>Guide for UIKeyboardLayoutGuide - Minimal example</title>
+    <meta name="description" content="Working with new iOS 15 API for keyboard avoidance">
+    
+    <meta property="og:url" content="http://localhost:3000/posts/keyboard-layout-guide/">
+    <meta property="og:title" content="Guide for UIKeyboardLayoutGuide - Minimal example">
+    <meta property="og:description" content="Working with new iOS 15 API for keyboard avoidance">
+    <meta property="og:image" content="/assets/posts/keyboard-layout-guide/cover.png" />
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Guide for UIKeyboardLayoutGuide - Minimal example">
+    <meta name="twitter:description" content="Working with new iOS 15 API for keyboard avoidance">
+    <meta name="twitter:image" content="/assets/posts/keyboard-layout-guide/cover.png">
+    
+    <link rel="stylesheet" href="http://localhost:3000/css/modern-normalize.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/modern-base.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/theme.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/style.css">
+    
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)">
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
+        media="(prefers-color-scheme: dark)"
+    >
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+</head>
+
+<body>
+    <header>
+        <nav>
+            <div class="navigation">
+                <a href="/">Home</a>
+            <a href="/about/">About</a>
+            <a href="/rss.xml">RSS</a>
+            </div>
+        </nav>
+    </header>
+        
+    <main>
+    
+    <div class="article-with-toc">
+        <div>
+            <article class="post">
+                
+                <section>
+                <div class="meta">
+                    <time datetime="2021-06-09">2021-06-09</time>
+                     &bull; <span class="reading-time">1 min read</span>
+                    
+                </div>
+                
+                <img src="/assets/posts/keyboard-layout-guide/cover.png" alt="Guide for UIKeyboardLayoutGuide">
+    
+                <p><em>Translations: <a href="https://habr.com/ru/company/skyeng/blog/585790" target="_blank">Russian</a></em></p><p>A common task making app layout is keyboard avoidance. Since iOS 14.0 it works automatically for SwiftUI views. What’s about old, but good UIKit? Previously we used keyboard notifications, checked keyboard height, and updated related constraints. iOS 15 introduces a new layout guide — <code>UIKeyboardLayoutGuide</code>. It’s super intuitive if you’re familiar with other guides like <code>safeAreaLayoutGuide</code> and <code>readableContentGuide</code>. Let’s try to use it in a simple example — we have a login screen with text fields and a login button pinned to the bottom.</p><h2 id="base-usage">Base usage</h2><p>We add just two constraints with system spacing:</p><pre><code class="language-swift">view.addSubview(loginButton)
+let buttonBottom = view.keyboardLayoutGuide.topAnchor.constraint(equalToSystemSpacingBelow: loginButton.bottomAnchor, multiplier: 1.0)
+let buttonTrailing = view.keyboardLayoutGuide.trailingAnchor.constraint(equalToSystemSpacingAfter: loginButton.trailingAnchor, multiplier: 1.0)
+NSLayoutConstraint.activate([buttonBottom, buttonTrailing])
+</code></pre><p>Now <code>loginButton</code> layout follows keyboard changes. When the keyboard is offscreen, <code>keyboardLayoutGuide.topAnchor</code> matches the view’s <code>safeAreaLayoutGuide.bottomAnchor</code>.</p><p><Image<br>alt={<code>Works as simple as it must be</code>}<br>src={<code>/images/keyboard-layout-guide/button.png</code>}<br>width={946}<br>height={882}<br>/></p><p>That’s all, thank you for coming to my TED talk! Wait, the keyboard is no so simple, especially on iPadOS. You can undock and drag it to any place. Luckily, the keyboard guide helps us to handle these cases.</p><p><Image<br>alt={<code>Floating keyboard on iPadOS</code>}<br>src={<code>/images/keyboard-layout-guide/floating-keyboard.png</code>}<br>width={1276}<br>height={1780}<br>/></p><h2 id="working-with-floating-keyboards">Working with floating keyboards</h2><p>At first, we must enable keyboard tracking, it’s disabled by default:</p><pre><code class="language-swift">view.keyboardLayoutGuide.followsUndockedKeyboard = true
+</code></pre><p>Now, loginButton starts to follow the keyboard:</p><p><Image<br>src={<code>/images/keyboard-layout-guide/button-follow.png</code>}<br>width={524}<br>height={424}<br>/></p><p>It works great, but here we have edge cases. When we move the keyboard at the top, <code>loginButton</code> may be outside of the view frame.</p><p>Actually, <code>UIKeyboardLayoutGuide</code> is a subclass of <code>UITrackingLayoutGuide</code>. It’s a layout guide that automatically activates and deactivates constraints depending on its nearness to edges. To use it, we replace buttonTrailing constraint with:</p><pre><code class="language-swift">let buttonTop = view.keyboardLayoutGuide.topAnchor.constraint(equalToSystemSpacingBelow: loginButton.bottomAnchor, multiplier: 1.0)
+buttonTop.identifier = "buttonTop"
+view.keyboardLayoutGuide.setConstraints([buttonTop], activeWhenAwayFrom: .top)
+</code></pre><p><code>buttonTop</code> constraint will be active only when the keyboard is away from the top. Finally, we add <code>buttonBottom</code> constraint to pin <code>loginButton</code> at the keyboard bottom:</p><pre><code class="language-swift">let buttonBottom = loginButton.topAnchor.constraint(equalToSystemSpacingBelow: view.keyboardLayoutGuide.bottomAnchor, multiplier: 1.0)
+buttonBottom.identifier = "buttonBottom"
+view.keyboardLayoutGuide.setConstraints([buttonBottom], activeWhenNearEdge: .top)
+</code></pre><blockquote><p>Note: configuring identifiers for NSLayoutConstraint allows you to find constraints easily during debugging.</p></blockquote><p>Here is a final demo of our example. I’ve added some leading and trailing constraints as well. Check out <a href="https://github.com/artemnovichkov/UIKeyboardLayoutGuideExample" target="_blank">UIKeyboardLayoutGuideExample</a> on Github.</p><iframe
+  width="100%"
+  height="315"
+  src="//www.youtube.com/embed/BznK97LhCv8"
+  frameBorder="0"
+  allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+  allowFullScreen
+/>
+<h2 id="related-resources">Related resources</h2><ul><li><a href="https://support.apple.com/en-us/HT210758" target="_blank">Use the floating keyboard on your iPad</a> by Apple</li><li><a href="https://developer.apple.com/videos/play/wwdc2021/10259" target="_blank">Your guide to keyboard layout</a> by Apple</li><li><a href="https://developer.apple.com/documentation/uikit/keyboards_and_input/adjust_your_layout_with_keyboard_layout_guide" target="_blank">Adjust Your Layout with Keyboard Layout Guide</a> by Apple</li><li><a href="https://fivestars.blog/articles/swiftui-keyboard" target="_blank">SwiftUI keyboard avoidance</a> by <a href="https://twitter.com/zntfdr" target="_blank">Federico Zanetello</a></li></ul>
+                    
+                </section>
+    
+                <footer>
+                    <br>
+                    <time datetime=""></time>
+                    
+                    <div class="tag-list">
+                    </div>
+                    <div class="author-list">
+                    </div>
+                </footer>
+                            
+                <section class="group">
+                </section>
+    
+            </article>
+        </div>
+        
+        <div>
+                </div>
+    </div>
+    
+
+    </main>
+
+    <footer>
+    
+        <p>Made with ❤️ by Artem Novichkov</p>
+    
+        <p>This site was generated using <a href="https://www.swift.org/" target="_blank">Swift</a> & <a href="https://github.com/toucansites/toucan" target="_blank">Toucan</a>.</p>
+    
+        <p class="small">Minimal example &copy; 2024.</p>
+    </footer>
+ 
+
+    
+</body>
+</html>

@@ -1,0 +1,59 @@
+footer, .page {
+    max-width: 800px;
+    margin: 0 auto;
+}
+footer {
+    text-align: center;
+    border-top: 1px dotted black;
+    padding-top: 16px;
+}
+.page {
+    padding-top: 16px;
+    padding-bottom: 16px;
+}
+
+body > header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+    transition: background-color .1 ease-in-out;
+}
+body > header nav a {
+    display: inline-block;
+    padding: 1rem;
+}
+body > main {
+    max-width: 42rem;
+    margin: 0 auto;
+}
+
+body > main > header {
+    text-align: center;
+    padding: 8px 0;
+}
+body > main > header img {
+    width: 144px;
+    border-radius: 50%;
+}
+
+.card {
+    margin-bottom: 16px;
+}
+.card img {
+    border-radius: 0.25rem;
+}
+#about img {
+    width: 144px;
+    border-radius: 50%;
+}
+#about p {
+    margin-bottom: 1rem;
+}
+
+#positions img {
+    width: 40px;
+    border-radius: 0.25rem;
+    display: inline-block;
+}

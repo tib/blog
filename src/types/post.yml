@@ -1,0 +1,76 @@
+id: post
+rss: true
+location: "posts"
+template: blog.single.post
+
+pagination:
+    bundle: blog/posts/pagination
+    limit: 1
+    sort: title
+    order: asc
+
+properties:
+    featured:
+        type: bool
+        required: true
+    order:
+        type: int
+        required: true
+
+relations:
+    authors:
+        references: author
+        join: many
+        sort: title
+        order: asc
+    tags:
+        references: tag
+        join: many
+        sort: title
+        order: asc
+
+context:
+    site:
+        posts:
+            sort: publication
+            order: desc
+            limit: 10
+        
+        featured:
+            sort: title
+            order: asc
+            limit: 2
+            filter:
+                field: featured
+                method: equals
+                value: true
+                
+    local:
+        prev:
+            references: post
+            foreignKey: $prev
+            sort: order
+            order: asc
+
+        next:
+            references: post
+            foreignKey: $next
+            sort: order
+            order: asc
+            
+        related:
+            references: post
+            foreignKey: $same.tags
+            sort: order
+            order: asc
+            limit: 6
+
+        moreByAuthors:
+            references: post
+            foreignKey: $same.authors
+            sort: order #TODO: $random
+            order: asc
+            limit: 6
+        
+
+

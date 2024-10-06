@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html >
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <title>Implementing spoilers in SwiftUI - Minimal example</title>
+    <meta name="description" content="Recreation of spoiler feature from Telegram in SwiftUI">
+    
+    <meta property="og:url" content="http://localhost:3000/posts/spoiler-view/">
+    <meta property="og:title" content="Implementing spoilers in SwiftUI - Minimal example">
+    <meta property="og:description" content="Recreation of spoiler feature from Telegram in SwiftUI">
+    <meta property="og:image" content="/assets/posts/spoiler-view/cover.png" />
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Implementing spoilers in SwiftUI - Minimal example">
+    <meta name="twitter:description" content="Recreation of spoiler feature from Telegram in SwiftUI">
+    <meta name="twitter:image" content="/assets/posts/spoiler-view/cover.png">
+    
+    <link rel="stylesheet" href="http://localhost:3000/css/modern-normalize.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/modern-base.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/theme.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/style.css">
+    
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)">
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
+        media="(prefers-color-scheme: dark)"
+    >
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+</head>
+
+<body>
+    <header>
+        <nav>
+            <div class="navigation">
+                <a href="/">Home</a>
+            <a href="/about/">About</a>
+            <a href="/rss.xml">RSS</a>
+            </div>
+        </nav>
+    </header>
+        
+    <main>
+    
+    <div class="article-with-toc">
+        <div>
+            <article class="post">
+                
+                <section>
+                <div class="meta">
+                    <time datetime="2023-03-09">2023-03-09</time>
+                     &bull; <span class="reading-time">2 min read</span>
+                    
+                </div>
+                
+                <img src="/assets/posts/spoiler-view/cover.png" alt="Implementing spoilers in SwiftUI">
+    
+                <p>Telegram has a <a href="https://telegram.org/blog/reactions-spoilers-translations#spoilers" target="_blank">spoiler feature</a> that allows you to hide certain parts of your message that could reveal a spoiler. In this article, we will explore how to implement the feature in SwiftUI.</p><h2 id="dive-into-source-code">Dive into source code</h2><p>If you’re interested in exploring Telegram’s source code, you’ll find that they use the <code>CAEmitterLayer</code> and <code>CAEmitterCell</code> classes from Core Animation to <a href="https://github.com/TelegramMessenger/Telegram-iOS/blob/930d1fcc46e39830e6d590986a6a838c3ff49e27/submodules/InvisibleInkDustNode/Sources/InvisibleInkDustNode.swift#L97-L109" target="_blank">implement the spoiler effect</a>. <code>CAEmitterLayer</code> is a powerful class that allows you to create particle effects like fire, smoke, or snow. In the case of the Telegram spoiler effect, <code>CAEmitterLayer</code> is used to generate a cloud of particles that obscure the spoiler text:</p><pre><code class="language-swift">let emitter = CAEmitterCell()
+emitter.contents = UIImage(bundleImageName: "Components/TextSpeckle")?.cgImage
+emitter.contentsScale = 1.8
+emitter.emissionRange = .pi * 2.0
+emitter.lifetime = 1.0
+emitter.scale = 0.5
+emitter.velocityRange = 20.0
+emitter.name = "dustCell"
+emitter.alphaRange = 1.0
+emitter.setValue("point", forKey: "particleType")
+emitter.setValue(3.0, forKey: "mass")
+emitter.setValue(2.0, forKey: "massRange")
+</code></pre><p>We will reuse their configuration, but in final, we want to see something like this:</p><pre><code class="language-swift">import SwiftUI
+
+struct ContentView: View {
+
+    @State var spoilerIsOn = true
+
+    var body: some View {
+        Text("Everything will be good")
+            .font(.title)
+            .spoiler(isOn: $spoilerIsOn)
+    }
+}
+</code></pre><h2 id="caemitterlayer-in-swiftui">CAEmitterLayer in SwiftUI</h2><p>We can create a custom <code>UIView</code> subclass that’s designed specifically to work with <code>CAEmitterLayer</code>:</p><pre><code class="language-swift">final class EmitterView: UIView {
+
+    override class var layerClass: AnyClass {
+        CAEmitterLayer.self
+    }
+
+    override var layer: CAEmitterLayer {
+        super.layer as! CAEmitterLayer
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        layer.emitterPosition = .init(x: bounds.size.width / 2,
+                                      y: bounds.size.height / 2)
+        layer.emitterSize = bounds.size
+    }
+}
+</code></pre><p>We override the <code>layerClass</code> property to specify that the layer for this view should be of type <code>CAEmitterLayer</code>. We also override the <code>layer</code> property to cast the <code>super.layer</code> as a <code>CAEmitterLayer</code>, which allows us to access the emitter layer’s properties and methods more easily.</p><p>Pay attention to <code>layoutSubviews()</code> function. It’s required to set position  and size for the emitter.</p><p>Next, we’ll use <code>UIViewRepresentable</code> wrapper and add emitter cell configurations:</p><pre><code class="language-swift">struct SpoilerView: UIViewRepresentable {
+
+    var isOn: Bool
+
+    func makeUIView(context: Context) -&gt; EmitterView {
+        let emitterView = EmitterView()
+
+        let emitterCell = CAEmitterCell()
+        emitterCell.contents = UIImage(named: "textSpeckle_Normal")?.cgImage
+        emitterCell.color = UIColor.black.cgColor
+        emitterCell.contentsScale = 1.8
+        emitterCell.emissionRange = .pi * 2
+        emitterCell.lifetime = 1
+        emitterCell.scale = 0.5
+        emitterCell.velocityRange = 20
+        emitterCell.alphaRange = 1
+        emitterCell.birthRate = 4000
+
+        emitterView.layer.emitterShape = .rectangle
+        emitterView.layer.emitterCells = [emitterCell]
+
+        return emitterView
+    }
+
+    func updateUIView(_ uiView: EmitterView, context: Context) {
+        if isOn {
+            uiView.layer.beginTime = CACurrentMediaTime()
+        }
+        uiView.layer.birthRate = isOn ? 1 : 0
+    }
+}
+</code></pre><p>The <code>isOn</code> property in <code>SpoilerView</code> is used to change visibility of the particle effect via <code>birthRate</code> property. <code>textSpeckle_Normal</code> image is reused from Telegram, it’s a simple white dot, we can use any image for particles or generate it in runtime. And of course, we can move all constants to the properties as well, but we hardcode it to simplify the example.</p><h2 id="modifiers-and-extensions">Modifiers and extensions</h2><p>We implement a <code>SpoilerModifier</code> struct that adds a spoiler to any view. It takes a boolean value to toggle the visibility of the effect.</p><pre><code class="language-swift">struct SpoilerModifier: ViewModifier {
+
+    let isOn: Bool
+
+    func body(content: Content) -&gt; some View {
+        content.overlay {
+            SpoilerView(isOn: isOn)
+        }
+    }
+}
+</code></pre><p>We already can use it like a usual modifier:</p><pre><code class="language-swift">import SwiftUI
+
+struct ContentView: View {
+
+    var body: some View {
+        Text("Everything will be good")
+            .font(.title)
+            .opacity(0)
+            .modifier(SpoilerModifier(isOn: true))
+    }
+}
+</code></pre><p>Or we can expend <code>View</code> protocol and add some useful modifiers:</p><pre><code class="language-swift">extension View {
+
+    func spoiler(isOn: Binding&lt;Bool&gt;) -&gt; some View {
+        self
+            // 1
+            .opacity(isOn.wrappedValue ? 0 : 1)
+            // 2
+            .modifier(SpoilerModifier(isOn: isOn.wrappedValue))
+            // 3
+            .animation(.default, value: isOn.wrappedValue)
+            // 4
+            .onTapGesture {
+                isOn.wrappedValue.toggle()
+            }
+    }
+}
+</code></pre><p>Let’s discover every line here:</p><ol><li>Hides the content if the spoiler is on.</li><li>Adds the modifier with the spoiler modifier.</li><li>Adds a default animation for smooth transitions between states. The type of the animation we also can pass via parameters to change it from the outside.</li><li>Add a tap gesture to change the states.</li></ol><p>Now we can apply these modifiers to any view in our apps. It doesn’t work exactly like in Telegram, because it should overlay every word separately and hide the particles starting from the tap area. According to <code>Text</code> interface in SwiftUI and initial tricky implementation (hello, private API), this solution is simple and useful for rectangles like one-line text or images. If you know how to improve it, feel free to ping me on <a href="https://twitter.com/iosartem" target="_blank">Twitter</a>.</p><p>If you want to play with SpoilerView by yourself, check out <a href="https://github.com/artemnovichkov/SpoilerViewExample" target="_blank">SpoilerViewExample</a> project on Github.</p><h2 id="references">References</h2><ul><li><a href="https://github.com/TelegramMessenger/Telegram-iOS" target="_blank">Telegram source code</a></li><li><a href="https://nshipster.com/caemitterlayer" target="_blank">CAEmitter​Layer</a> by <a href="https://twitter.com/mattt" target="_blank">Mattt</a></li><li><a href="https://github.com/ArthurGuibert/SwiftUI-Particles" target="_blank">SwiftUI-Particles</a> by <a href="https://github.com/ArthurGuibert" target="_blank">ArthurGuibert</a></li><li><a href="https://github.com/GetStream/effects-library" target="_blank">EffectsLibrary</a> by <a href="https://twitter.com/getstream_io" target="_blank">Stream</a></li></ul>
+                    
+                </section>
+    
+                <footer>
+                    <br>
+                    <time datetime=""></time>
+                    
+                    <div class="tag-list">
+                    </div>
+                    <div class="author-list">
+                    </div>
+                </footer>
+                            
+                <section class="group">
+                </section>
+    
+            </article>
+        </div>
+        
+        <div>
+                </div>
+    </div>
+    
+
+    </main>
+
+    <footer>
+    
+        <p>Made with ❤️ by Artem Novichkov</p>
+    
+        <p>This site was generated using <a href="https://www.swift.org/" target="_blank">Swift</a> & <a href="https://github.com/toucansites/toucan" target="_blank">Toucan</a>.</p>
+    
+        <p class="small">Minimal example &copy; 2024.</p>
+    </footer>
+ 
+
+    
+</body>
+</html>

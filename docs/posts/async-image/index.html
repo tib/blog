@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html >
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <title>AsyncImage. Loading images in SwiftUI - Minimal example</title>
+    <meta name="description" content="Working with AsyncImage in iOS 15: placeholders, errors, success!">
+    
+    <meta property="og:url" content="http://localhost:3000/posts/async-image/">
+    <meta property="og:title" content="AsyncImage. Loading images in SwiftUI - Minimal example">
+    <meta property="og:description" content="Working with AsyncImage in iOS 15: placeholders, errors, success!">
+    <meta property="og:image" content="/assets/posts/async-image/cover.png" />
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="AsyncImage. Loading images in SwiftUI - Minimal example">
+    <meta name="twitter:description" content="Working with AsyncImage in iOS 15: placeholders, errors, success!">
+    <meta name="twitter:image" content="/assets/posts/async-image/cover.png">
+    
+    <link rel="stylesheet" href="http://localhost:3000/css/modern-normalize.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/modern-base.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/theme.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/style.css">
+    
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)">
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
+        media="(prefers-color-scheme: dark)"
+    >
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+</head>
+
+<body>
+    <header>
+        <nav>
+            <div class="navigation">
+                <a href="/">Home</a>
+            <a href="/about/">About</a>
+            <a href="/rss.xml">RSS</a>
+            </div>
+        </nav>
+    </header>
+        
+    <main>
+    
+    <div class="article-with-toc">
+        <div>
+            <article class="post">
+                
+                <section>
+                <div class="meta">
+                    <time datetime="2021-06-08">2021-06-08</time>
+                     &bull; <span class="reading-time">1 min read</span>
+                    
+                </div>
+                
+                <img src="/assets/posts/async-image/cover.png" alt="AsyncImage. Loading images in SwiftUI">
+    
+                <p>iOS 15.0 gives us new SwiftUI views, and one of them is <code>AsyncImage</code>. It loads and displays an image from the given URL.</p><p>Let’s start with a basic example:</p><pre><code class="language-swift">import SwiftUI
+
+struct ContentView: View {
+
+    private let url = URL(string: "https://picsum.photos/200")
+
+    var body: some View {
+        AsyncImage(url: url)
+    }
+}
+</code></pre><p>By default, it shows a gray background and replaces it with the loaded image:</p><p><Image<br>alt={<code>Empty and success states of AsyncImage</code>}<br>src={<code>/images/async-image/empty-success.png</code>}<br>width={946}<br>height={882}<br>/></p><p>Optionally we can change <code>scale</code> to use for the image. In the example below the image size will be reduced by half:</p><pre><code class="language-swift">import SwiftUI
+
+struct ContentView: View {
+
+    private let url = URL(string: "https://picsum.photos/200")
+
+    var body: some View {
+        AsyncImage(url: url, scale: 2)
+    }
+}
+</code></pre><p>To update the appearance of <code>AsyncImage</code>, we can use an initializer with content and placeholder view builders. Here we able to modify a final image and show a custom placeholder view:</p><pre><code class="language-swift">import SwiftUI
+
+struct ContentView: View {
+
+    private let url = URL(string: "https://picsum.photos/200")
+
+    var body: some View {
+        AsyncImage(url: url) { image in
+            image
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        } placeholder: {
+            Image(systemName: "photo")
+                .imageScale(.large)
+                .foregroundColor(.gray)
+        }
+        .ignoresSafeArea()
+    }
+}
+</code></pre><p><Image<br>alt={<code>Custom placeholder and resized image</code>}<br>src={<code>/images/async-image/custom-placeholder.png</code>}<br>width={946}<br>height={882}<br>/></p><p>If we want to handle an error state, we can use another initializer with <code>AsyncImagePhase</code>. It’s a simple enum with three cases: empty, success, and error.</p><pre><code class="language-swift">import SwiftUI
+
+struct ContentView: View {
+
+    private let url = URL(string: "https://picsum.photos/200")
+
+    var body: some View {
+        AsyncImage(url: url, content: view)
+    }
+
+    @ViewBuilder
+    private func view(for phase: AsyncImagePhase) -&gt; some View {
+        switch phase {
+        case .empty:
+            ProgressView()
+        case .success(let image):
+            image
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        case .failure(let error):
+            VStack(spacing: 16) {
+                Image(systemName: "xmark.octagon.fill")
+                    .foregroundColor(.red)
+                Text(error.localizedDescription)
+                    .multilineTextAlignment(.center)
+            }
+        @unknown default:
+            Text("Unknown")
+                .foregroundColor(.gray)
+        }
+    }
+}
+</code></pre><p>Here we show a spinner during loading, resized image if loading is successful, and an error message if something is wrong.</p><p><Image<br>alt={<code>Working with phases of AsyncImage</code>}<br>src={<code>/images/async-image/phases.png</code>}<br>width={1419}<br>height={882}<br>/></p><p>To specify animations between phase changes, we can optionally add <code>Transition</code>:</p><pre><code class="language-swift">import SwiftUI
+
+struct ContentView: View {
+
+    private let url = URL(string: "https://picsum.photos/200")
+    private let transaction: Transaction = .init(animation: .linear)
+
+    var body: some View {
+        AsyncImage(url: url,
+                   transaction: transaction,
+                   content: view)
+    }
+    ...
+}
+</code></pre><p>And, of course, we can use <code>AsyncImage</code> inside <code>List</code> to show multiple images:</p><pre><code class="language-swift">import SwiftUI
+
+struct ContentView: View {
+
+    private let url = URL(string: "https://picsum.photos/200")
+
+    var body: some View {
+        List {
+            ForEach(0..&lt;10) { _ in
+                AsyncImage(url: url,
+                           content: view)
+                    .listRowInsets(.init(.zero))
+            }
+        }
+        .listStyle(.plain)
+    }
+    ...
+}
+</code></pre><p><Image<br>alt={<code>Finally, we can show List without separators </code>}<br>src={<code>/images/async-image/list.png</code>}<br>width={946}<br>height={1764}<br>/></p><p>If you want to play with AsyncImage by yourself, check out <a href="https://github.com/artemnovichkov/AsyncImageExample" target="_blank">AsyncImageExample</a> project on Github.</p><h2 id="references">References</h2><ul><li><a href="https://developer.apple.com/documentation/SwiftUI/AsyncImage" target="_blank">AsyncImage Documentation</a> by Apple</li><li><a href="https://swiftwithmajid.com/2020/10/07/transactions-in-swiftui" target="_blank">Transactions in SwiftUI</a> by <a href="https://twitter.com/mecid" target="_blank">Majid Jabrayilov</a></li></ul>
+                    
+                </section>
+    
+                <footer>
+                    <br>
+                    <time datetime=""></time>
+                    
+                    <div class="tag-list">
+                    </div>
+                    <div class="author-list">
+                    </div>
+                </footer>
+                            
+                <section class="group">
+                </section>
+    
+            </article>
+        </div>
+        
+        <div>
+                </div>
+    </div>
+    
+
+    </main>
+
+    <footer>
+    
+        <p>Made with ❤️ by Artem Novichkov</p>
+    
+        <p>This site was generated using <a href="https://www.swift.org/" target="_blank">Swift</a> & <a href="https://github.com/toucansites/toucan" target="_blank">Toucan</a>.</p>
+    
+        <p class="small">Minimal example &copy; 2024.</p>
+    </footer>
+ 
+
+    
+</body>
+</html>

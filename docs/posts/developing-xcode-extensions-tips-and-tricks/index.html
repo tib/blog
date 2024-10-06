@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html >
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <title>Developing Xcode Extensions. Tips and tricks - Minimal example</title>
+    <meta name="description" content="Xcode Extension for ray.so code sharing service">
+    
+    <meta property="og:url" content="http://localhost:3000/posts/developing-xcode-extensions-tips-and-tricks/">
+    <meta property="og:title" content="Developing Xcode Extensions. Tips and tricks - Minimal example">
+    <meta property="og:description" content="Xcode Extension for ray.so code sharing service">
+    <meta property="og:image" content="/assets/posts/developing-xcode-extensions-tips-and-tricks/cover.png" />
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Developing Xcode Extensions. Tips and tricks - Minimal example">
+    <meta name="twitter:description" content="Xcode Extension for ray.so code sharing service">
+    <meta name="twitter:image" content="/assets/posts/developing-xcode-extensions-tips-and-tricks/cover.png">
+    
+    <link rel="stylesheet" href="http://localhost:3000/css/modern-normalize.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/modern-base.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/theme.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/style.css">
+    
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)">
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
+        media="(prefers-color-scheme: dark)"
+    >
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+</head>
+
+<body>
+    <header>
+        <nav>
+            <div class="navigation">
+                <a href="/">Home</a>
+            <a href="/about/">About</a>
+            <a href="/rss.xml">RSS</a>
+            </div>
+        </nav>
+    </header>
+        
+    <main>
+    
+    <div class="article-with-toc">
+        <div>
+            <article class="post">
+                
+                <section>
+                <div class="meta">
+                    <time datetime="2021-02-21">2021-02-21</time>
+                     &bull; <span class="reading-time">2 min read</span>
+                    
+                </div>
+                
+                <img src="/assets/posts/developing-xcode-extensions-tips-and-tricks/cover.png" alt="Developing Xcode Extensions. Tips and tricks">
+    
+                <p>You all see these <a href="https://twitter.com/mecid/status/1359468427396714504" target="_blank">beautiful</a> <a href="https://twitter.com/twannl/status/1359823904609603584" target="_blank">code</a> <a href="https://twitter.com/mkj_is/status/1361204092320632836" target="_blank">screenshots</a> on Twitter. I often use <a href="https://carbon.now.sh" target="_blank">Carbon</a> for my tweets, but Raycast team released ray.so that looks prettier and has options for customization via query parameters. I decided to write an Xcode Source Extension for it. Here is my journey, enjoy the reading!</p><h2 id="the-app-is-first">The app is first</h2><p>Extensions can be installed only within main apps, and it’s a good chance to use SwiftUI for macOS development. My app contains options for sharing: colors, background, dark mode, and paddings. Finally, the app looks like this:</p><p><Image<br>alt={<code>RaySo extension preview</code>}<br>src={<code>/images/developing-xcode-extensions-tips-and-tricks/rayso-preview.png</code>}<br>width={1224}<br>height={760}<br>/></p><p>All selected options are saved to UserDefaults and shared to the extension via app groups. The app is based on SwiftUI App template, and it is very limited for configuration. For instance, it is very hard to disable the fullscreen toolbar button.</p><p>Since macOS 11.0 SDK you can use <a href="https://developer.apple.com/documentation/swiftui/scene/defaultappstorage(_:)" target="_blank">defaultAppStorage(_:)</a> for scenes and views in your apps. All nested @AppStorage property wrappers will use it by default. In theory. But it doesn’t work for me, so I set all stores explicitly:</p><pre><code class="language-swift">private static let defaults = UserDefaults(suiteName: Constants.suiteName)!
+
+@AppStorage(Constants.darkModeKey, store: Self.defaults)
+var darkMode: Bool = true
+</code></pre><p>And there is no way to check which store is used in @AppStorage. If you know how to fix it, ping me on <a href="http://twitter.com/iosartem" target="_blank">Twitter</a>.</p><h2 id="continue-with-extension">Continue with extension</h2><p>It was my first Xcode Source Extension, so I dived into documentation and <a href="https://github.com/theswiftdev/awesome-xcode-extensions" target="_blank">open source extensions</a>. Personally, I think it’s hard to develop and debug. By the way, here is my final code for getting a selected code:</p><pre><code class="language-swift">private func selectedCode(from buffer: XCSourceTextBuffer) -&gt; String {
+var text = ""
+var spacesCount = 0
+for case let range as XCSourceTextRange in buffer.selections {
+    for lineNumber in range.start.line...range.end.line {
+        if lineNumber &gt;= buffer.lines.count {
+            continue
+        }
+        guard let line = buffer.lines[lineNumber] as? String else {
+            continue
+        }
+        if spacesCount == 0 {
+            let currentSpacesCount = line.prefix(while: { $0 == " " }).count
+            if currentSpacesCount &gt; 0 {
+                spacesCount = currentSpacesCount
+            }
+        }
+        let substring = line.dropFirst(spacesCount)
+        text.append(String(substring))
+    }
+    return text.trimmingCharacters(in: .whitespacesAndNewlines)
+}
+</code></pre><p>Except extension-specific logic like spacing and trimming, you should work with <code>XCSourceTextBuffer</code>, <code>XCSourceTextRange</code>, <code>XCSourceTextPosition</code> etc.</p><p>When you run your extension, Xcode launches a special instance of Xcode. Sometimes extensions just not show up in Editor menu. Folks on StackOverflow, Apple Forums and Github issues advise to sign extensions with a real certificate, rename Xcode and of course clean/relaunch your projects. Erica Sadun wrote <a href="https://ericasadun.com/2016/07/21/explorations-into-the-xcode-source-editor-extensions-underbelly-part-1" target="_blank">a good article</a> about debugging.</p><p>Finally, when the extension gets selected code, it opens special URL with saved options via <code>NSWorkspace.shared.open</code>.</p><p>To use any installed extensions, select Editor menu in Xcode, and all extensions with commands will appear at the bottom:</p><p><Image<br>alt={<code>RaySo extension using</code>}<br>src={<code>/images/developing-xcode-extensions-tips-and-tricks/extension-using.png</code>}<br>width={2071}<br>height={1585}<br>/></p><h2 id="bonus-key-bindings">Bonus: Key bindings</h2><p>To be more productive, you can associate a keyboard shortcut with the extension command in <code>Xcode > Preferences... > Key Bindings</code> menu. I use ⌃ + ⌥ + ⌘ + R, because it doesn’t conflict with default bindings.</p><h2 id="results">Results</h2><p>To check the final project, you can open <a href="https://github.com/artemnovichkov/RaySo" target="_blank">RaySo</a> repository and install the app. Regardless all caveats, I’m happy with the result. Now it’s so easy to share my code right from Xcode! I just want to add several good articles that help me:</p><ul><li><a href="https://www.vadimbulavin.com/xcode-source-editor-extension-tutorial" target="_blank">Xcode Source Editor Extension Tutorial: Getting Started</a> by <a href="https://twitter.com/V8tr" target="_blank">Vadim Bulavin</a></li><li><a href="https://nshipster.com/xcode-source-extensions" target="_blank">Xcode​Kit and Xcode Source Editor Extensions</a> by <a href="https://twitter.com/zoejessica" target="_blank">Zoë Smith</a></li></ul>
+                    
+                </section>
+    
+                <footer>
+                    <br>
+                    <time datetime=""></time>
+                    
+                    <div class="tag-list">
+                    </div>
+                    <div class="author-list">
+                    </div>
+                </footer>
+                            
+                <section class="group">
+                </section>
+    
+            </article>
+        </div>
+        
+        <div>
+                </div>
+    </div>
+    
+
+    </main>
+
+    <footer>
+    
+        <p>Made with ❤️ by Artem Novichkov</p>
+    
+        <p>This site was generated using <a href="https://www.swift.org/" target="_blank">Swift</a> & <a href="https://github.com/toucansites/toucan" target="_blank">Toucan</a>.</p>
+    
+        <p class="small">Minimal example &copy; 2024.</p>
+    </footer>
+ 
+
+    
+</body>
+</html>

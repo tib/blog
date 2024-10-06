@@ -1,0 +1,5 @@
+---
+title: "Home"
+description: "Welcome to the home page."
+template: "index"
+---

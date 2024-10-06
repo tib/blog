@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html >
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <title>Bluetooth and SwiftUI. Developing app for RGB stripe control - Minimal example</title>
+    <meta name="description" content="Dev journey about working with Bluetooth, SwiftUI, and Combine">
+    
+    <meta property="og:url" content="http://localhost:3000/posts/bluetooth-and-swiftui/">
+    <meta property="og:title" content="Bluetooth and SwiftUI. Developing app for RGB stripe control - Minimal example">
+    <meta property="og:description" content="Dev journey about working with Bluetooth, SwiftUI, and Combine">
+    
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Bluetooth and SwiftUI. Developing app for RGB stripe control - Minimal example">
+    <meta name="twitter:description" content="Dev journey about working with Bluetooth, SwiftUI, and Combine">
+    
+    
+    <link rel="stylesheet" href="http://localhost:3000/css/modern-normalize.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/modern-base.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/theme.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/style.css">
+    
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)">
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
+        media="(prefers-color-scheme: dark)"
+    >
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+</head>
+
+<body>
+    <header>
+        <nav>
+            <div class="navigation">
+                <a href="/">Home</a>
+            <a href="/about/">About</a>
+            <a href="/rss.xml">RSS</a>
+            </div>
+        </nav>
+    </header>
+        
+    <main>
+    
+    <div class="article-with-toc">
+        <div>
+            <article class="post">
+                
+                <section>
+                <div class="meta">
+                    <time datetime="2021-05-31">2021-05-31</time>
+                     &bull; <span class="reading-time">4 min read</span>
+                    
+                </div>
+                
+                
+    
+                <p>Last year I bought <a href="https://www.ikea.com/us/en/p/bekant-desk-sit-stand-white-s49022538/" target="_blank">BEKANT</a> desk. It looks minimalistic and… boring, so I wanted to add some RGB lightning. I chose a cheap no-name <a href="https://aliexpress.ru/item/32801604250.html" target="_blank">RGB stripe</a> with a controller that works with IR and Bluetooth as well. The seller recommends using <a href="https://apps.apple.com/ru/app/id1145694075" target="_blank">HappyLighting</a> app. It works well enough, supports default styles like pulsating and strobe effects, syncs with music and surround sound. But the interface is a bit strange:</p><p><Image<br>alt={<code>Bluetooth and SwiftUI</code>}<br>src={<code>/images/bluetooth-and-swiftui/happy-lighting.png</code>}<br>width={1170}<br>height={2532}<br>/></p><p>I’m an iOS developer who learns SwiftUI and Combine, so I decided to write my own app 🧑🏻‍💻. It’s a proof of concept, but in the future, I can add more features like a watchOS companion app, Siri support, widgets, etc. At the end of the article, you can find a link to a Github repo with source code. Here is a final demo:</p><iframe
+  width="100%"
+  height="315"
+  src="//www.youtube.com/embed/qMGvnPOIhJM"
+  frameBorder="0"
+  allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+  allowFullScreen
+/>
+<h2 id="bluetooth-delegates---combine">Bluetooth: Delegates -> Combine</h2><p>With the power of <code>CoreBluetooth</code> framework, you can check Bluetooth state, scan for peripherals, discover required services and characteristics. By default, it works via Delegate pattern and knows nothing about <code>Combine</code>. If you aren’t familiar with <code>CoreBluetooth</code>, I recommend checking <a href="https://www.raywenderlich.com/231-core-bluetooth-tutorial-for-ios-heart-rate-monitor" target="_blank">this tutorial</a> by Ray Wendenlich team. The basic algorithm for reading and writing data is:</p><ol><li>Find Bluetooth device a.k.a. peripheral.</li><li>Discover its services. Every service is a collection of data related to peripheral features. For instance, heart rate or lightning services.</li><li>Discover characteristics for specific services. Every characteristic provides information about the peripheral state. Also, you can write data for characteristics to update the peripheral states.</li></ol><p>I wrote a simple <code>BluetoothManager</code> object that works with <code>CBCentralManager</code> and <code>CBPeripheral</code> and broadcasts any updates. I decided to use Combine for it. With the magic of publishers, I can subscribe to needed updates and filter/map them in a more declarative way.</p><p>Here is an example of working with states and peripherals:</p><pre><code class="language-swift">import Combine
+import CoreBluetooth
+
+final class BluetoothManager: NSObject {
+    
+    private var centralManager: CBCentralManager!
+    
+    var stateSubject: PassthroughSubject&lt;CBManagerState, Never&gt; = .init()
+    var peripheralSubject: PassthroughSubject&lt;CBPeripheral, Never&gt; = .init()
+    
+    func start() {
+        centralManager = .init(delegate: self, queue: .main)
+    }
+    
+    func connect(_ peripheral: CBPeripheral) {
+        centralManager.stopScan()
+        peripheral.delegate = self
+        centralManager.connect(peripheral)
+    }
+}
+
+extension BluetoothManager: CBCentralManagerDelegate {
+    
+    func centralManagerDidUpdateState(_ central: CBCentralManager) {
+        stateSubject.send(central.state)
+    }
+    
+    func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
+        peripheralSubject.send(peripheral)
+    }
+}
+</code></pre><p>In the app views, I subscribe to required subjects and show related states. Here is an example of discovering services:</p><pre><code class="language-swift">manager.servicesSubject
+    .map { $0.filter { Constants.serviceUUIDs.contains($0.uuid) } }
+    .sink { [weak self] services in
+        services.forEach { service in
+            self?.peripheral.discoverCharacteristics(nil, for: service)
+        }
+    }
+    .store(in: &cancellables)
+</code></pre><p>To work with specific devices, you must know identifiers for services and characteristics to read and write data. Unfortunately, my controller has no documentation about its protocol, but I found <a href="https://github.com/madhead/saberlight/blob/master/protocols/Triones/protocol.md" target="_blank">an awesome description on Github</a>. The author reverse-engineered the protocol and described almost all data formats. They look strange and have plenty of magic constants, but who don’t use them in projects 😅. I added the required identifiers to the app based on the documentation used them for filtering:</p><pre><code class="language-swift">enum Constants {
+    static let readServiceUUID: CBUUID = .init(string: "FFD0")
+    static let writeServiceUUID: CBUUID = .init(string: "FFD5")
+    static let serviceUUIDs: [CBUUID] = [readServiceUUID, writeServiceUUID]
+    static let readCharacteristicUUID: CBUUID = .init(string: "FFD4")
+    static let writeCharacteristicUUID: CBUUID = .init(string: "FFD9")
+}
+</code></pre><h2 id="swiftui-states-and-view-models">SwiftUI: states and view models</h2><p>For every view in the app I added view model to split layout and business logic. View models support <code>ObservableObject</code> protocol, work with <code>BluetoothManager</code>, manage subject subscriptions, and have <code>@Published</code> for view updates. The downside of this approach is no convenient way to pass <code>BluetoothManager</code> to every model. Initially, I wanted to use <code>@EnvironmentObject</code> and pass it to all child views, but it works well only in <code>View</code> itself. Finally, I just added it lazily to all view models:</p><pre><code class="language-swift">import SwiftUI
+import CoreBluetooth
+import Combine
+
+final class DevicesViewModel: ObservableObject {
+    
+    @Published var state: CBManagerState = .unknown
+    @Published var peripherals: [CBPeripheral] = []
+    
+    private lazy var manager: BluetoothManager = .shared
+    private lazy var cancellables: Set&lt;AnyCancellable&gt; = .init()
+    
+    deinit {
+        cancellables.cancel()
+    }
+    
+    func start() {
+        manager.stateSubject
+            .sink { [weak self] state in
+                self?.state = state
+            }
+            .store(in: &cancellables)
+        manager.peripheralSubject
+            .filter { [weak self] in self?.peripherals.contains($0) == false }
+            .sink { [weak self] in self?.peripherals.append($0) }
+            .store(in: &cancellables)
+        manager.start()
+    }
+}
+</code></pre><p>Views create their own model and handle it with <code>@StateObject</code>:</p><pre><code class="language-swift">struct DevicesView: View {
+    
+    @StateObject private var viewModel: DevicesViewModel = .init()
+}
+</code></pre><p><a href="http://twitter.com/iosartem" target="_blank">Ping me</a> if you’re good in SwiftUI dependency injection topic, I really appreciate feedback for this logic.</p><p>Debugging the app, I found that <code>onAppear</code> called twice for some views. People on forums confirm it and fill radars. In the app, I just added a silly check with a state flag:</p><pre><code class="language-swift">struct DeviceView: View {
+    
+    @State private var didAppear = false
+    
+    var body: some View {
+        content()
+            .onAppear {
+                guard didAppear == false else {
+                    return
+                }
+                didAppear = true
+                viewModel.connect()
+            }
+    }
+}
+</code></pre><p>I didn’t want to reinvent the color wheel and used <code>ColorPicker</code> for color selection:</p><pre><code class="language-swift">ColorPicker("Change stripe color",
+            selection: $viewModel.state.color,
+            supportsOpacity: false)
+</code></pre><p>I used it in UIKit projects a few times, you can just show it on any user action. But in SwiftUI it shows a default interface with no customization.</p><p><Image<br>alt={<code>Bluetooth and SwiftUI</code>}<br>src={<code>/images/bluetooth-and-swiftui/color-stripe.png</code>}<br>width={1170}<br>height={2532}<br>/></p><p>There are two options for selection binding — <code>Color</code> and <code>CGColor</code>. I choose the second one because it is easy to get color components from it.</p><h2 id="conclusion">Conclusion</h2><p>The more I use SwiftUI, the more I like its concepts. In pair with Combine, it makes app logic more expressive. And I’m still sure that developing pet projects are a great way to combine fun and learning.</p><p>The final project is <a href="https://github.com/artemnovichkov/ColorStripe" target="_blank">available on Github</a>. Feel free to check it and share your feedback. Thanks for reading!</p><h2 id="related-resources">Related resources</h2><ul><li><a href="https://developer.apple.com/documentation/corebluetooth/transferring_data_between_bluetooth_low_energy_devices" target="_blank">Transferring Data Between Bluetooth Low Energy Devices</a> by Apple</li><li><a href="https://swiftuipropertywrappers.com" target="_blank">SwiftUI Property Wrappers</a> by <a href="https://twitter.com/donnywals" target="_blank">Donny Wals</a></li><li><a href="https://youtu.be/Kp9sHwp4wN8" target="_blank">SwiftUI Color Picker</a> by <a href="https://twitter.com/seanallen_dev" target="_blank">Sean Allen</a></li></ul>
+                    
+                </section>
+    
+                <footer>
+                    <br>
+                    <time datetime=""></time>
+                    
+                    <div class="tag-list">
+                    </div>
+                    <div class="author-list">
+                    </div>
+                </footer>
+                            
+                <section class="group">
+                </section>
+    
+            </article>
+        </div>
+        
+        <div>
+                </div>
+    </div>
+    
+
+    </main>
+
+    <footer>
+    
+        <p>Made with ❤️ by Artem Novichkov</p>
+    
+        <p>This site was generated using <a href="https://www.swift.org/" target="_blank">Swift</a> & <a href="https://github.com/toucansites/toucan" target="_blank">Toucan</a>.</p>
+    
+        <p class="small">Minimal example &copy; 2024.</p>
+    </footer>
+ 
+
+    
+</body>
+</html>

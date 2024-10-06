@@ -1,0 +1,61 @@
+{{<html}}
+{{$main}}
+
+<div class="article-with-toc">
+    <div>
+        <article class="post">
+            
+            <section>
+            <div class="meta">
+                <time datetime="{{page.publication.html}}">{{page.publication.html}}</time>
+                {{#page.readingTime}} &bull; <span class="reading-time">{{page.readingTime}} min read</span>{{/page.readingTime}}
+                {{#page.featured}} &bull; <span class="featured">featured</span>{{/page.featured}}
+            </div>
+            
+            {{#page.imageUrl}}<img src="{{.}}" alt="{{page.title}}">{{/page.imageUrl}}
+
+            {{& page.contents}}
+                
+            </section>
+
+            <footer>
+                <br>
+                <time datetime="{{page.date}}">{{page.date}}</time>
+                
+                <div class="tag-list">
+                {{#page.tags}}
+                    <a href="{{permalink}}"><small>{{title}}</small></a>
+                {{/page.tags}}
+                </div>
+                <div class="author-list">
+                {{#page.authors}}
+                    <a href="{{permalink}}">
+                    {{#imageUrl}}<img class="small rounded" src="{{imageUrl}}" alt="{{title}}">{{/imageUrl}}
+                    </a>
+                {{/page.authors}}
+                </div>
+            </footer>
+                        
+            <section class="group">
+                {{#empty(page.related)}}
+                {{/empty(page.related)}}
+                {{^empty(page.related)}}
+                <h4>Related posts</h4>                
+                <div class="grid grid-221">
+                {{#page.related}}
+                    {{> blog.blocks.post}}
+                {{/page.related}}
+                </div>
+                {{/empty(page.related)}}
+            </section>
+
+        </article>
+    </div>
+    
+    <div>
+        {{> blocks.toc }}
+    </div>
+</div>
+
+{{/main}}
+{{/html}}

@@ -1,0 +1,40 @@
+{{<html}}
+{{$main}}
+
+<div id="about">
+{{& page.contents}}
+</div>
+
+<h2>Experience</h2>
+
+<section id="positions">
+   
+    <h3>Full-time positions</h3>
+    <div class="full-time">
+    {{#userDefined.positions.fullTime}}
+        <div class="position">
+            <img src="{{image}}" alt="{{company}}">
+            <h4>{{title}}</h4>
+            <a href="{{url}}">{{company}}</a>
+            <p>{{startDate}} → {{#finishDate}}{{{.}}}{{/finishDate}}{{^finishDate}}Current{{/finishDate}}</p>
+        </div>
+    {{/userDefined.positions.fullTime}}    
+    </div>
+
+    <h3>Part-time positions</h3>
+    <div class="part-time">
+    {{#userDefined.positions.partTime}}
+        <div class="position">
+            <img src="{{image}}" alt="{{company}}">
+            <h4>{{title}}</h4>
+            <a href="{{url}}">{{company}}</a>
+            <p>{{startDate}} → {{#finishDate}}{{{.}}}{{/finishDate}}{{^finishDate}}Current{{/finishDate}}</p>
+        </div>
+    {{/userDefined.positions.partTime}}    
+    </div>
+
+
+</section>
+
+{{/main}}
+{{/html}}

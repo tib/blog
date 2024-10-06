@@ -1,0 +1,39 @@
+{{<html}}
+{{$main}}
+<section id="blog">
+
+    {{& page.contents}}
+    
+    {{#empty(site.context.featured)}}
+    {{/empty(site.context.featured)}}
+    {{^empty(site.context.featured)}}
+    <div>
+    {{#site.context.featured}}
+        {{> blog.blocks.post}}
+    {{/site.context.featured}}
+    </div>
+    {{/empty(site.context.featured)}}
+    
+    {{#empty(site.context.posts)}}
+    {{/empty(site.context.posts)}}
+    {{^empty(site.context.posts)}}
+    <div class="grid grid-321">
+    {{#site.context.posts}}
+        {{> blog.blocks.post}}
+    {{/site.context.posts}}
+    </div>
+    {{/empty(site.context.posts)}}
+    
+    {{#empty(site.context.pagination)}}
+    {{/empty(site.context.pagination)}}
+    {{^empty(site.context.pagination)}}
+    <div class="pagination">
+    {{#site.context.pagination}}
+        {{> blocks.pagination}}
+    {{/site.context.pagination}}
+    </div>
+    {{/empty(site.context.pagination)}}
+</section>
+
+{{/main}}
+{{/html}}

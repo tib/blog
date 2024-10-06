@@ -1,0 +1,105 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+<channel>
+    <title>Minimal example</title>
+    <description>This is a minimal toucan example</description>
+    <link>http://localhost:3000/</link>
+    <language></language>
+    <lastBuildDate>Sun, 06 Oct 2024 18:20:41 +0000</lastBuildDate>
+    <pubDate>Sat, 07 Sep 2024 00:00:00 +0000</pubDate>
+    <ttl>250</ttl>
+    <atom:link href="http://localhost:3000/rss.xml" rel="self" type="application/rss+xml"/>
+
+<item>
+    <guid isPermaLink="true">http://localhost:3000/posts/github-contribution-graph-swift-charts/</guid>
+    <title><![CDATA[ Github contribution graph with Swift Charts ]]></title>
+    <description><![CDATA[ Recreation of the contribution graph from GitHub using Swift Charts ]]></description>
+    <link>http://localhost:3000/posts/github-contribution-graph-swift-charts/</link>
+    <pubDate>Sat, 07 Sep 2024 00:00:00 +0000</pubDate>
+</item>
+<item>
+    <guid isPermaLink="true">http://localhost:3000/posts/remove-background-from-image-in-swiftui/</guid>
+    <title><![CDATA[ Remove background from image in SwiftUI ]]></title>
+    <description><![CDATA[ Recreation of photo cutout feature from Telegram in SwiftUI ]]></description>
+    <link>http://localhost:3000/posts/remove-background-from-image-in-swiftui/</link>
+    <pubDate>Tue, 16 Jan 2024 00:00:00 +0000</pubDate>
+</item>
+<item>
+    <guid isPermaLink="true">http://localhost:3000/posts/spoiler-view/</guid>
+    <title><![CDATA[ Implementing spoilers in SwiftUI ]]></title>
+    <description><![CDATA[ Recreation of spoiler feature from Telegram in SwiftUI ]]></description>
+    <link>http://localhost:3000/posts/spoiler-view/</link>
+    <pubDate>Thu, 09 Mar 2023 00:00:00 +0000</pubDate>
+</item>
+<item>
+    <guid isPermaLink="true">http://localhost:3000/posts/async-await-offline/</guid>
+    <title><![CDATA[ Async/await for existing iOS apps ]]></title>
+    <description><![CDATA[ Using new concurrency model with SwiftUI apps ]]></description>
+    <link>http://localhost:3000/posts/async-await-offline/</link>
+    <pubDate>Fri, 26 Nov 2021 00:00:00 +0000</pubDate>
+</item>
+<item>
+    <guid isPermaLink="true">http://localhost:3000/posts/keyboard-layout-guide/</guid>
+    <title><![CDATA[ Guide for UIKeyboardLayoutGuide ]]></title>
+    <description><![CDATA[ Working with new iOS 15 API for keyboard avoidance ]]></description>
+    <link>http://localhost:3000/posts/keyboard-layout-guide/</link>
+    <pubDate>Wed, 09 Jun 2021 00:00:00 +0000</pubDate>
+</item>
+<item>
+    <guid isPermaLink="true">http://localhost:3000/posts/async-image/</guid>
+    <title><![CDATA[ AsyncImage. Loading images in SwiftUI ]]></title>
+    <description><![CDATA[ Working with AsyncImage in iOS 15: placeholders, errors, success! ]]></description>
+    <link>http://localhost:3000/posts/async-image/</link>
+    <pubDate>Tue, 08 Jun 2021 00:00:00 +0000</pubDate>
+</item>
+<item>
+    <guid isPermaLink="true">http://localhost:3000/posts/bluetooth-and-swiftui/</guid>
+    <title><![CDATA[ Bluetooth and SwiftUI. Developing app for RGB stripe control ]]></title>
+    <description><![CDATA[ Dev journey about working with Bluetooth, SwiftUI, and Combine ]]></description>
+    <link>http://localhost:3000/posts/bluetooth-and-swiftui/</link>
+    <pubDate>Mon, 31 May 2021 00:00:00 +0000</pubDate>
+</item>
+<item>
+    <guid isPermaLink="true">http://localhost:3000/posts/custom-popups-in-swiftui/</guid>
+    <title><![CDATA[ Implementing custom popups in SwiftUI ]]></title>
+    <description><![CDATA[ How to make custom popups with reusable showing in SwiftUI ]]></description>
+    <link>http://localhost:3000/posts/custom-popups-in-swiftui/</link>
+    <pubDate>Thu, 20 May 2021 00:00:00 +0000</pubDate>
+</item>
+<item>
+    <guid isPermaLink="true">http://localhost:3000/posts/result-builders/</guid>
+    <title><![CDATA[ Using result builders for action sheets in SwiftUI ]]></title>
+    <description><![CDATA[ Make SwiftUI sheets more declarative with result builders ]]></description>
+    <link>http://localhost:3000/posts/result-builders/</link>
+    <pubDate>Sat, 01 May 2021 00:00:00 +0000</pubDate>
+</item>
+<item>
+    <guid isPermaLink="true">http://localhost:3000/posts/swiftui-offline/</guid>
+    <title><![CDATA[ Working with web content offline in SwiftUI apps ]]></title>
+    <description><![CDATA[ Three out-of-box ways to show web content offline. Of course, with SwiftUI examples ]]></description>
+    <link>http://localhost:3000/posts/swiftui-offline/</link>
+    <pubDate>Sun, 25 Apr 2021 00:00:00 +0000</pubDate>
+</item>
+<item>
+    <guid isPermaLink="true">http://localhost:3000/posts/sheet-happens/</guid>
+    <title><![CDATA[ Sheet happens. Working with modal views in SwiftUI ]]></title>
+    <description><![CDATA[ My experience with sheets in SwiftUI based on developing pet projects ]]></description>
+    <link>http://localhost:3000/posts/sheet-happens/</link>
+    <pubDate>Wed, 14 Apr 2021 00:00:00 +0000</pubDate>
+</item>
+<item>
+    <guid isPermaLink="true">http://localhost:3000/posts/developing-xcode-extensions-tips-and-tricks/</guid>
+    <title><![CDATA[ Developing Xcode Extensions. Tips and tricks ]]></title>
+    <description><![CDATA[ Xcode Extension for ray.so code sharing service ]]></description>
+    <link>http://localhost:3000/posts/developing-xcode-extensions-tips-and-tricks/</link>
+    <pubDate>Sun, 21 Feb 2021 00:00:00 +0000</pubDate>
+</item>
+<item>
+    <guid isPermaLink="true">http://localhost:3000/posts/custom-environment-value-for-share-actions/</guid>
+    <title><![CDATA[ Custom @Environment value for share actions ]]></title>
+    <description><![CDATA[ Showing share actions in SwiftUI style ]]></description>
+    <link>http://localhost:3000/posts/custom-environment-value-for-share-actions/</link>
+    <pubDate>Sat, 13 Feb 2021 00:00:00 +0000</pubDate>
+</item>
+
+</channel>
+</rss>

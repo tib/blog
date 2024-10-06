@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html >
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <title>Implementing custom popups in SwiftUI - Minimal example</title>
+    <meta name="description" content="How to make custom popups with reusable showing in SwiftUI">
+    
+    <meta property="og:url" content="http://localhost:3000/posts/custom-popups-in-swiftui/">
+    <meta property="og:title" content="Implementing custom popups in SwiftUI - Minimal example">
+    <meta property="og:description" content="How to make custom popups with reusable showing in SwiftUI">
+    <meta property="og:image" content="/assets/posts/custom-popups-in-swiftui/cover.png" />
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Implementing custom popups in SwiftUI - Minimal example">
+    <meta name="twitter:description" content="How to make custom popups with reusable showing in SwiftUI">
+    <meta name="twitter:image" content="/assets/posts/custom-popups-in-swiftui/cover.png">
+    
+    <link rel="stylesheet" href="http://localhost:3000/css/modern-normalize.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/modern-base.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/theme.css">
+    <link rel="stylesheet" href="http://localhost:3000/css/style.css">
+    
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)">
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
+        media="(prefers-color-scheme: dark)"
+    >
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+</head>
+
+<body>
+    <header>
+        <nav>
+            <div class="navigation">
+                <a href="/">Home</a>
+            <a href="/about/">About</a>
+            <a href="/rss.xml">RSS</a>
+            </div>
+        </nav>
+    </header>
+        
+    <main>
+    
+    <div class="article-with-toc">
+        <div>
+            <article class="post">
+                
+                <section>
+                <div class="meta">
+                    <time datetime="2021-05-20">2021-05-20</time>
+                     &bull; <span class="reading-time">3 min read</span>
+                    
+                </div>
+                
+                <img src="/assets/posts/custom-popups-in-swiftui/cover.png" alt="Implementing custom popups in SwiftUI">
+    
+                <p>Two months ago my friend <a href="https://twitter.com/iamnalimov" target="_blank">@iamnalimov</a> and I published jstnmbr app on <a href="https://www.producthunt.com/posts/jstnmbr" target="_blank">ProductHunt</a>. The idea of the app is very simple — count everything: books, push-ups, glasses of water. Of course, I choose SwiftUI for implementation. In this article, I want to highlight the key moments of implementing custom popups. It won’t be in the tutorial format, we’ll add a specific layout, but I hope it helps you in using overlays, geometry readers, and modifiers in your projects. If you have any questions or ideas on how to improve it, ping me on <a href="http://twitter.com/iosartem" target="_blank">Twitter</a>.</p><h2 id="design-is-the-key">Design is the key</h2><p>Let’s start with the design. Popups may contain different content, but the appearance and behavior are the same. Superviews are covered with blur overlay, popups have the same background color, top left and right rounded corners, and ability to dismissing:</p><p>    <img src="/assets/posts/custom-popups-in-swiftui/design.png" alt="Final design"></p><p>We want to implement a familiar API interface for presenting like alerts or action sheets:</p><pre><code class="language-swift">.popup(isPresented: $isPresented) {
+    popupView
+}
+</code></pre><p>Here we have a <code>Binding<Bool></code> for presenting state and <code>@ViewBuilder</code> for popup content. Internally it will contain two parts:</p><ul><li>Custom ViewModifier that will show popups via overlays.</li><li>View extension for convenience interface and blur overlays.</li></ul><h2 id="modifiers-and-view-extensions">Modifiers And View Extensions</h2><p>Initially, we create <code>OverlayModifier</code>:</p><pre><code class="language-swift">import SwiftUI
+
+struct OverlayModifier&lt;OverlayView: View&gt;: ViewModifier {
+    
+    @Binding var isPresented: Bool
+    @ViewBuilder var overlayView: () -&gt; OverlayView
+    
+    init(isPresented: Binding&lt;Bool&gt;, @ViewBuilder overlayView: @escaping () -&gt; OverlayView) {
+        self._isPresented = isPresented
+        self.overlayView = overlayView
+    }
+}
+</code></pre><p>It contains <code>isPresented</code> state and the popup content. To conform <code>ViewModifier</code> protocol, we must implement <code>body(content:)</code> function. In our case it just optionally adds an overlay based on the state:</p><pre><code class="language-swift">func body(content: Content) -&gt; some View {
+    content.overlay(isPresented ? overlayView() : nil)
+}
+</code></pre><p>Pay attention to <code>overlayView()</code>. Its body will be called only when popups is presented. <code>View</code> knows nothing about this modifier, so we extend <code>View</code> protocol with popup presentation:</p><pre><code class="language-swift">extension View {
+    
+    func popup&lt;OverlayView: View&gt;(isPresented: Binding&lt;Bool&gt;,
+                                  blurRadius: CGFloat = 3,
+                                  blurAnimation: Animation? = .linear,
+                                  @ViewBuilder overlayView: @escaping () -&gt; OverlayView) -&gt; some View {
+        blur(radius: isPresented.wrappedValue ? blurRadius : 0)
+            .animation(blurAnimation)
+            .allowsHitTesting(!isPresented.wrappedValue)
+            .modifier(OverlayModifier(isPresented: isPresented, overlayView: overlayView))
+    }
+}
+</code></pre><p>Let’s describe every modifier:</p><ol><li><code>blur</code> adds a blur overlay to superview if the popup is presented. We have a default value in function parameters to reuse the same radius and modify for specific popups if needed.</li><li><code>animation</code> adds an animation for blur overlay if needed.</li><li><code>allowsHitTesting</code> disables user interactions in superview if the popup is presented.</li><li><code>modifier</code> applies custom <code>OverlayModifier</code> with passed <code>overlayView</code>.</li></ol><p>We’re ready to show popups, but we don’t have any yet 😅. Let’s make a basic PopupView with a common appearance according to our goals:</p><ul><li>It may contain different content inside;</li><li>It has a background color and rounded top left and top right corners;</li><li>It is showed from the bottom with animation.</li></ul><h2 id="popup-layout">Popup Layout</h2><p>Let’s create a simple view named NamePopupView that knows nothing about popup logic:</p><p>    <img src="/assets/posts/custom-popups-in-swiftui/popup-1.png" alt="NamePopupView"></p><p>The app may show different popups, so we create a reusable <code>BottomPopupView</code> to show different content:</p><pre><code class="language-swift">struct BottomPopupView&lt;Content: View&gt;: View {
+    
+    @ViewBuilder var content: () -&gt; Content
+    
+    var body: some View {
+        content()
+    }
+}
+</code></pre><p>Now we can show it in <code>.popup</code> modifier:</p><pre><code class="language-swift">.popup(isPresented: $isPresented) {
+	BottomPopupView {
+		NamePopupView(isPresented: $isPresented)
+	}
+}
+</code></pre><p>By default, overlays are shown in the center of the superview. To pin it to the bottom we wrap the content into <code>VStack</code> with <code>Spacer</code>:</p><pre><code class="language-swift">VStack {
+	Spacer()
+	content()
+	    .background(Color.white)
+	    .cornerRadius(radius: 16, corners: [.topLeft, .topRight])
+}
+</code></pre><p>Default <code>cornerRadius</code> modifier works for all corners, so here we use a custom modifier for it:</p><pre><code class="language-swift">struct RoundedCornersShape: Shape {
+    
+    let radius: CGFloat
+    let corners: UIRectCorner
+    
+    func path(in rect: CGRect) -&gt; Path {
+        let path = UIBezierPath(roundedRect: rect,
+                                byRoundingCorners: corners,
+                                cornerRadii: CGSize(width: radius, height: radius))
+        return Path(path.cgPath)
+    }
+}
+
+extension View {
+    
+    func cornerRadius(radius: CGFloat, corners: UIRectCorner = .allCorners) -&gt; some View {
+        clipShape(RoundedCornersShape(radius: radius, corners: corners))
+    }
+}
+</code></pre><p>All is now ready, and here is the result:</p><p>    <img src="/assets/posts/custom-popups-in-swiftui/popup-2.png" alt="Popup with extra Safe Area insets"></p><p>Insets for Safe Area have added automatically, but we want to overlay superviews at the bottom too. To read and use Safe Area insets, we add <code>GeometryReader</code>:</p><pre><code class="language-swift">GeometryReader { geometry in
+	VStack {
+	    Spacer()
+	    content()
+		    .padding(.bottom, geometry.safeAreaInsets.bottom)
+		    .background(Color.white)
+		    .cornerRadius(radius: 16, corners: [.topLeft, .topRight])
+	}
+	.edgesIgnoringSafeArea([.bottom])
+}
+</code></pre><p>To pin our popup at the bottom, we add <code>.edgesIgnoringSafeArea</code> modifier. According to the content, we add a bottom padding with the bottom inset before <code>.background</code> modifier. With this logic background color will appear as expected.</p><p>    <img src="/assets/posts/custom-popups-in-swiftui/popup-3.png" alt="Popup with ignoring Safe Area insets"></p><p>Since iOS 14 we even have an automatic keyboard avoidance:</p><p>    <img src="/assets/posts/custom-popups-in-swiftui/popup-4.png" alt="Popup with keyboard avoidance"></p><h2 id="animations">Animations</h2><p>The layout is finished 🥳, but there is no animation. Luckily SwiftUI has easy-to-use modifiers for animations and transitions:</p><pre><code class="language-swift">GeometryReader { geometry in
+    ...
+}
+.animation(.easeOut)
+.transition(.move(edge: .bottom))
+</code></pre><p>    <img src="/assets/posts/custom-popups-in-swiftui/final.gif" alt="Popup with extra Safe Area insets"></p><h2 id="source-code">Source Code</h2><p>You can find the final project on <a href="https://github.com/artemnovichkov/CustomPopupExample" target="_blank">Github</a>. Thanks for reading!</p><h2 id="related-articles">Related Articles</h2><ul><li><a href="https://www.vadimbulavin.com/swiftui-popup-sheet-popover" target="_blank">Custom Popup in SwiftUI</a> by <a href="https://twitter.com/V8tr" target="_blank">Vadim Bulavin</a></li><li><a href="https://swiftwithmajid.com/2020/11/04/how-to-use-geometryreader-without-breaking-swiftui-layout" target="_blank">How to use GeometryReader without breaking SwiftUI layout</a> by <a href="https://twitter.com/mecid" target="_blank">Majid Jabrayilov</a></li><li><a href="https://www.fivestars.blog/articles/swiftui-keyboard" target="_blank">SwiftUI keyboard avoidance</a> by <a href="https://twitter.com/zntfdr" target="_blank">Federico Zanetello</a></li></ul>
+                    
+                </section>
+    
+                <footer>
+                    <br>
+                    <time datetime=""></time>
+                    
+                    <div class="tag-list">
+                    </div>
+                    <div class="author-list">
+                    </div>
+                </footer>
+                            
+                <section class="group">
+                </section>
+    
+            </article>
+        </div>
+        
+        <div>
+                </div>
+    </div>
+    
+
+    </main>
+
+    <footer>
+    
+        <p>Made with ❤️ by Artem Novichkov</p>
+    
+        <p>This site was generated using <a href="https://www.swift.org/" target="_blank">Swift</a> & <a href="https://github.com/toucansites/toucan" target="_blank">Toucan</a>.</p>
+    
+        <p class="small">Minimal example &copy; 2024.</p>
+    </footer>
+ 
+
+    
+</body>
+</html>
